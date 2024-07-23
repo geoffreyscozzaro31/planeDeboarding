@@ -3,7 +3,7 @@ import plane_boarding
 import os
 
 
-OUTPUT_DIR = '~/plane_boarding'
+OUTPUT_DIR = 'medias/'
 
 
 def save_history(simulation, n=1):
@@ -25,14 +25,14 @@ def measure_boarding_time(simulation, n=10):
 			simulation.set_boarding_zones(boarding_zone)
 			simulation.run_multiple(n)
 
-			print(boarding_zone, passengers_proportion, np.mean(simulation.boarding_time))
+			print(boarding_zone, passengers_proportion, np.mean(simulation.deboarding_time))
 			
 			file_name = f'{boarding_zone.name.lower()}_{passengers_proportion}'
 			full_path = os.path.join(OUTPUT_DIR, f'{file_name}_{simulation.n_rows}_{simulation.n_seats_left}_total_time.txt')
 
 			with open(full_path, "w") as file:
 				file.write(f'{boarding_zone.name.lower()} {passengers_proportion}\n')
-				file.write(' '.join(map(str, simulation.boarding_time)))
+				file.write(' '.join(map(str, simulation.deboarding_time)))
 
 
 def save_boarding_orders(simulation):
