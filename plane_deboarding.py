@@ -6,13 +6,12 @@ from enum import Enum, IntEnum
 import numpy as np
 import itertools
 
-WALK_DURATION = 1  # in time steps
-STAND_UP_DURATION = 2  # in time steps
+WALK_DURATION = 2  # in time steps
+STAND_UP_DURATION = 3  # in time steps
 COLLECT_BAGGAGE_DURATION = 3  # in time steps
-MOVE_SEAT_DURATION = 1
+MOVE_SEAT_DURATION = 2
 
-
-MAX_TIME = 24*60*60
+MAX_TIME = 24 * 60 * 60
 
 N_SEAT_LEFT = 3
 
@@ -115,7 +114,9 @@ class Simulation:
         # 2. Randomly select seat indices for every passenger
         # 3. Create seat's list (i-th seat corresponds to the )
         all_seats = list(list(x) for x in itertools.product(seat_rows, seat_cols))
-        selected_seats_ind = np.random.choice(len(all_seats), size=self.n_passengers, replace=False)
+        all_seats.sort(key=lambda x :  100*x[0]+abs(x[1]))
+        selected_seats_ind = np.arange(self.n_passengers)
+        # selected_seats_ind = np.random.choice(len(all_seats), size=self.n_passengers, replace=False)
         selected_seats = [all_seats[seat_ind] for seat_ind in selected_seats_ind]
         if self.seat_allocation == SeatAllocation.CONNECTING_PRIORITY:
             pass  # todo: implementer strategie allocation pax priority
@@ -123,7 +124,8 @@ class Simulation:
 
         # Create passengers
         # Add a dummy element so that passengers are 1-indexed. We do this so that 0 in self.side_left etc. represents "no passenger"
-        self.passengers = [None]
+        # self.passengers = [None]
+        self.passengers = []
         for seat in selected_seats:
             self.passengers.append(Passenger(seat_row=seat[0], seat=seat[1], connecting_time=0, has_baggage=False))
 
@@ -141,14 +143,14 @@ class Simulation:
     def run(self):
         self.reset()
         deboarding_completed = False
-        while (self.t <1000) & (not deboarding_completed):
+        while (self.t < 1000) & (not deboarding_completed):
             self.print_info(f'\n*** Step {self.t}')
             deboarding_completed = self.step()
             if not self.quiet_mode:
                 self.print()
 
             self.t += 1
-
+        print(f"Total minutes to deboard all pax: {round(self.t/60,2)}min")
         # Update stats
         self.deboarding_time.append(self.t)
 
@@ -157,38 +159,54 @@ class Simulation:
         # Process passengers.
         # This basically iterates over all the passengers, and performs appropriate actions based on their state.
         deboarded_pax = 0  # Number of passengers already deboarded.
+        still_pax_sitted = 0
         for i, p in enumerate(self.passengers):
-            if i == 0: continue
-
-            if p.next_action_t > self.t: continue
+            # if i == 0: continue
+            if p.next_action_t > self.t:
+                continue
 
             match p.state:
                 case State.SEATED:
                     # If the first space in the aisle is empty, move there.
-                    if (abs(p.x) == 1) & (self.aisle[p.y] == 0):
-                        self.aisle[p.y] = i
-                        p.state = State.STAND_UP_FROM_SEAT
-                        p.x = 0
-                        p.next_action_t = self.t + STAND_UP_DURATION
-                        self.history[i].append([self.t, p.x, p.y, int(State.SEATED)])
-
+                    if p.x == -1:
+                        if self.aisle[p.y] == 0:
+                            self.side_left[p.y][N_SEAT_LEFT - 1] = 0
+                            p.x = 0
+                            self.aisle[p.y] = i
+                            p.state = State.STAND_UP_FROM_SEAT
+                            p.next_action_t = self.t + STAND_UP_DURATION
+                            self.history[i].append([self.t, p.x, p.y, int(State.SEATED)])
+                        else:
+                            p.next_action_t = self.t + 1
+                    if p.x == 1:
+                        if self.aisle[p.y] == 0:
+                            self.side_right[p.y][0] = 0
+                            p.x = 0
+                            self.aisle[p.y] = i
+                            p.state = State.STAND_UP_FROM_SEAT
+                            p.next_action_t = self.t + STAND_UP_DURATION
+                            self.history[i].append([self.t, p.x, p.y, int(State.SEATED)])
+                        else:
+                            p.next_action_t = self.t + 1
                     elif p.x < -1:
                         if self.side_left[p.seat_row][N_SEAT_LEFT + p.x + 1] == 0:
                             self.side_left[p.seat_row][N_SEAT_LEFT + p.x] = 0
                             p.x += 1
                             self.side_left[p.seat_row][N_SEAT_LEFT + p.x] = i
                             p.next_action_t = self.t + MOVE_SEAT_DURATION
+                            self.history[i].append([self.t, p.x, p.y, int(State.SEATED)])
                         else:
                             p.next_action_t = self.t + 1
-                    else:
+                    elif p.x > 1:
                         if self.side_right[p.seat_row][p.x - 2] == 0:
                             self.side_right[p.seat_row][p.x - 1] = 0
                             p.x -= 1
                             self.side_right[p.seat_row][p.x - 1] = i
                             p.next_action_t = self.t + MOVE_SEAT_DURATION
+                            self.history[i].append([self.t, p.x, p.y, int(State.SEATED)])
                         else:
                             p.next_action_t = self.t + 1
-
+                    still_pax_sitted += 1
                 case State.STAND_UP_FROM_SEAT:
                     if p.has_baggage:
                         p.state = State.MOVE_WAIT
@@ -247,7 +265,8 @@ class Simulation:
                     self.print_info(f'State {p.state} is not handled.')
 
         # Check whether everyone is already deboarded
-        print("Nb deboarded pax: ", deboarded_pax)
+        print(f"% deboarded pax: {100 * round(deboarded_pax / self.n_passengers, 2)}")
+        print(f"paxSitted: {still_pax_sitted}")
         return deboarded_pax == self.n_passengers
 
     # Save boarding history to a file.
@@ -275,7 +294,7 @@ if __name__ == "__main__":
 
     simulation = Simulation(quiet_mode=True, dummy_rows=2)
 
-    simulation.set_custom_aircraft(n_rows=16, n_seats_left=3, n_seats_right=3)
+    simulation.set_custom_aircraft(n_rows=22, n_seats_left=3, n_seats_right=3)
     simulation.set_passengers_proportion(1.0)
 
     simulation.set_passengers_proportion(passengers_proportion)
