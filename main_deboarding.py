@@ -3,7 +3,7 @@ import os
 
 import plane_deboarding
 
-OUTPUT_DIR = 'medias/'
+OUTPUT_DIR = 'medias/deboarding/'
 
 
 def save_history(simulation, n=1):
@@ -20,21 +20,21 @@ def save_history(simulation, n=1):
 
 def measure_deboarding_time(simulation, n=10):
     for passengers_proportion in [0.8, 1.0]:
-        print('')
         for seat_allocation in [plane_deboarding.SeatAllocation.RANDOM]:
             simulation.set_passengers_proportion(passengers_proportion)
             simulation.set_seat_allocation(seat_allocation)
             simulation.run_multiple(n)
 
-            print(seat_allocation, passengers_proportion, np.mean(simulation.deboarding_time))
+            # print(seat_allocation, passengers_proportion, np.mean(simulation.deboarding_time))
 
             file_name = f'{seat_allocation.name.lower()}_{passengers_proportion}'
             full_path = os.path.join(OUTPUT_DIR,
                                      f'{file_name}_{simulation.n_rows}_{simulation.n_seats_left}_total_time.txt')
-
+            print("start writing file deboarding time..")
             with open(full_path, "w") as file:
                 file.write(f'{seat_allocation.name.lower()} {passengers_proportion}\n')
                 file.write(' '.join(map(str, simulation.deboarding_time)))
+            print("file written !..")
 
 
 def save_deboarding_orders(simulation):

@@ -6,10 +6,10 @@ from enum import Enum, IntEnum
 import numpy as np
 import itertools
 
-WALK_DURATION = 2  # in time steps
-STAND_UP_DURATION = 3  # in time steps
-COLLECT_BAGGAGE_DURATION = 3  # in time steps
-MOVE_SEAT_DURATION = 2
+WALK_DURATION = 1  # in time steps
+STAND_UP_DURATION = 1  # in time steps
+COLLECT_BAGGAGE_DURATION = 1  # in time steps
+MOVE_SEAT_DURATION = 1
 
 MAX_TIME = 24 * 60 * 60
 
@@ -22,7 +22,7 @@ class State(IntEnum):
     STAND_UP_FROM_SEAT = 2
     MOVE_WAIT = 3
     MOVE_FROM_ROW = 4
-    DEBOARDED = 9
+    DEBOARDED = 5
 
 
 class SeatAllocation(Enum):
@@ -123,9 +123,8 @@ class Simulation:
         # selected_seats.sort(key=lambda x: x[2], reverse=True)
 
         # Create passengers
-        # Add a dummy element so that passengers are 1-indexed. We do this so that 0 in self.side_left etc. represents "no passenger"
-        # self.passengers = [None]
-        self.passengers = []
+        # Add a dummy element so that passengers are 1-indexed. We do this so that 0 in self.aisle,  self.side_left etc. represents "no passenger"
+        self.passengers = [None]
         for seat in selected_seats:
             self.passengers.append(Passenger(seat_row=seat[0], seat=seat[1], connecting_time=0, has_baggage=False))
 
@@ -160,11 +159,15 @@ class Simulation:
         # This basically iterates over all the passengers, and performs appropriate actions based on their state.
         deboarded_pax = 0  # Number of passengers already deboarded.
         still_pax_sitted = 0
+        #todo: itérer sur les passagers par ordre de priorité, de l'avant à l'arriere , et en fonction proximité couloir
         for i, p in enumerate(self.passengers):
-            # if i == 0: continue
+            if i==0 : continue
+
+            if p.state != State.DEBOARDED:
+                self.history[self.t].append([self.t, i, p.x, p.y, int(p.state)])
+
             if p.next_action_t > self.t:
                 continue
-
             match p.state:
                 case State.SEATED:
                     # If the first space in the aisle is empty, move there.
@@ -175,7 +178,6 @@ class Simulation:
                             self.aisle[p.y] = i
                             p.state = State.STAND_UP_FROM_SEAT
                             p.next_action_t = self.t + STAND_UP_DURATION
-                            self.history[i].append([self.t, p.x, p.y, int(State.SEATED)])
                         else:
                             p.next_action_t = self.t + 1
                     if p.x == 1:
@@ -185,7 +187,6 @@ class Simulation:
                             self.aisle[p.y] = i
                             p.state = State.STAND_UP_FROM_SEAT
                             p.next_action_t = self.t + STAND_UP_DURATION
-                            self.history[i].append([self.t, p.x, p.y, int(State.SEATED)])
                         else:
                             p.next_action_t = self.t + 1
                     elif p.x < -1:
@@ -194,7 +195,6 @@ class Simulation:
                             p.x += 1
                             self.side_left[p.seat_row][N_SEAT_LEFT + p.x] = i
                             p.next_action_t = self.t + MOVE_SEAT_DURATION
-                            self.history[i].append([self.t, p.x, p.y, int(State.SEATED)])
                         else:
                             p.next_action_t = self.t + 1
                     elif p.x > 1:
@@ -203,7 +203,6 @@ class Simulation:
                             p.x -= 1
                             self.side_right[p.seat_row][p.x - 1] = i
                             p.next_action_t = self.t + MOVE_SEAT_DURATION
-                            self.history[i].append([self.t, p.x, p.y, int(State.SEATED)])
                         else:
                             p.next_action_t = self.t + 1
                     still_pax_sitted += 1
@@ -211,7 +210,6 @@ class Simulation:
                     if p.has_baggage:
                         p.state = State.MOVE_WAIT
                         p.next_action_t = self.t + COLLECT_BAGGAGE_DURATION
-                        self.history[i].append([self.t, 0, p.y, int(p.state)])
                         ind = 0 if p.seat < 0 else 1
                         self.baggage_bin[p.seat_row][ind] += 1
                         self.history_baggage.append([self.t, p.seat_row, ind])
@@ -222,8 +220,6 @@ class Simulation:
                         # We can go!
                         p.next_action_t = self.t + WALK_DURATION
                         p.state = State.MOVE_FROM_ROW
-                        self.history[i].append([self.t, 0, p.y, int(p.state)])
-
                         self.aisle[p.y] = 0
                         p.y -= 1
                         self.aisle[p.y] = i
@@ -235,29 +231,22 @@ class Simulation:
                     # We can go!
                     p.next_action_t = self.t + WALK_DURATION
                     p.state = State.MOVE_FROM_ROW
-                    self.history[i].append([self.t, 0, p.y, int(p.state)])
-
                     self.aisle[p.y] = 0
                     p.y -= 1
                     self.aisle[p.y] = i
-
                 case State.MOVE_FROM_ROW:
                     if p.y == 0:
                         p.state = State.DEBOARDED
-                        self.history[i].append([self.t, 0, p.y, int(p.state)])
                         self.aisle[p.y] = 0
                         deboarded_pax += 1
                     else:
                         if self.aisle[p.y - 1] != 0:
                             p.state = State.MOVE_WAIT
-                            self.history[i].append([self.t, 0, p.y, int(p.state)])
                         else:
                             p.next_action_t = self.t + WALK_DURATION
-                            self.history[i].append([self.t, 0, p.y, int(p.state)])
                             self.aisle[p.y] = 0
                             p.y -= 1
                             self.aisle[p.y] = i
-
                 case State.DEBOARDED:
                     deboarded_pax += 1
 
