@@ -1,10 +1,16 @@
+import logging
 import os
 from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum
+from typing import List
 
 import numpy as np
 import itertools
+
+BUFFER_TIME_GATE_CONNECTING = 5  # in minutes
+
+TIME_STEP_DURATION = 2  # in seconds
 
 WALK_DURATION = 1  # in time steps
 STAND_UP_DURATION = 1  # in time steps
@@ -31,10 +37,11 @@ class SeatAllocation(Enum):
 
 
 class Passenger:
-    def __init__(self, seat_row, seat, connecting_time, has_baggage):
+    def __init__(self, seat_row, seat, slack_time, has_baggage):
         self.seat_row = seat_row
         self.seat = seat  # seat number (e.g. 1-3 for places on the right, negative numbers for places to the left)
-        self.connecting_time = connecting_time
+        self.slack_time = slack_time  # = max deboarding time (in minutes) authorised for this pax before missing its next flight, set to np.inf if not connecting pax
+        self.deboarding_time = -1
         self.has_baggage = has_baggage
         self.state = State.SEATED
         self.x = seat
@@ -46,7 +53,7 @@ class Passenger:
 class Simulation:
     def __init__(self, dummy_rows=2, quiet_mode=True):
         self.dummy_rows = dummy_rows  # We add dummy rows to have some space before the actual seats appear.
-        self.passengers = []
+        self.passengers: List[Passenger] = []
         self.t = 0
         self.history = defaultdict(list)
         self.history_baggage = []
@@ -118,15 +125,20 @@ class Simulation:
         selected_seats_ind = np.arange(self.n_passengers)
         # selected_seats_ind = np.random.choice(len(all_seats), size=self.n_passengers, replace=False)
         selected_seats = [all_seats[seat_ind] for seat_ind in selected_seats_ind]
+
+        # connecting_times = np.random.randint(0,30,len(selected_seats))
+        connecting_times = np.arange(0, len(selected_seats))
+        np.random.shuffle(connecting_times)
         if self.seat_allocation == SeatAllocation.CONNECTING_PRIORITY:
-            pass  # todo: implementer strategie allocation pax priority
-        # selected_seats.sort(key=lambda x: x[2], reverse=True)
+            connecting_times.sort()  # todo: implementer strategie allocation pax priority, add selected seat unassignable and first rows for business for instance
+
+        print("ok")
 
         # Create passengers
         # Add a dummy element so that passengers are 1-indexed. We do this so that 0 in self.aisle,  self.side_left etc. represents "no passenger"
         self.passengers = [None]
         for i, seat in enumerate(selected_seats):
-            self.passengers.append(Passenger(seat_row=seat[0], seat=seat[1], connecting_time=0, has_baggage=False))
+            self.passengers.append(Passenger(seat_row=seat[0], seat=seat[1], slack_time=connecting_times[i], has_baggage=True))
             if (seat[1] < 0):
                 self.side_left[seat[0]][N_SEAT_LEFT + seat[1]] = i + 1
             else:
@@ -242,6 +254,7 @@ class Simulation:
                     if p.y == 0:
                         p.state = State.DEBOARDED
                         self.aisle[p.y] = 0
+                        p.deboarding_time = (self.t * TIME_STEP_DURATION) // 60 + BUFFER_TIME_GATE_CONNECTING
                         deboarded_pax += 1
                     else:
                         if self.aisle[p.y - 1] != 0:
@@ -258,8 +271,8 @@ class Simulation:
                     self.print_info(f'State {p.state} is not handled.')
 
         # Check whether everyone is already deboarded
-        print(f"% deboarded pax: {100 * round(deboarded_pax / self.n_passengers, 2)}")
-        print(f"paxSitted: {still_pax_sitted}")
+        # print(f"% deboarded pax: {100 * round(deboarded_pax / self.n_passengers, 2)}")
+        # print(f"paxSitted: {still_pax_sitted}")
         return deboarded_pax == self.n_passengers
 
     # Save boarding history to a file.
@@ -280,16 +293,35 @@ class Simulation:
                 f.write(' '.join(map(str, entry)) + '\n')
 
 
+    def evaluate_missing_pax(self):
+        "iterate over pax and test if deboarding time > slack time"
+        nb_missed_pax = 0
+        nb_deboarded_pax = 0
+        # print(self.passengers)
+        for i, passenger in enumerate(self.passengers):
+            if i ==0: continue
+
+            if passenger.deboarding_time < 0:
+                logging.warning(f"Error when computing deboarding time of passenger {i}")
+            else:
+                if (passenger.deboarding_time > passenger.slack_time):
+                    nb_missed_pax += 1
+                nb_deboarded_pax += 1
+        print(f"Total missed pax: {nb_missed_pax}")
+        print(f"Percentage missed pax: {100 * round(nb_missed_pax / nb_deboarded_pax, 3)}%")
+
+
 if __name__ == "__main__":
     nb_simu = 1
     passengers_proportion = 0.8
-    seat_allocation = SeatAllocation.RANDOM
+    seat_allocation = SeatAllocation.CONNECTING_PRIORITY
+    for seat_allocation in [SeatAllocation.RANDOM,SeatAllocation.CONNECTING_PRIORITY]:
+        simulation = Simulation(quiet_mode=True, dummy_rows=2)
 
-    simulation = Simulation(quiet_mode=True, dummy_rows=2)
+        simulation.set_custom_aircraft(n_rows=22, n_seats_left=3, n_seats_right=3)
+        simulation.set_passengers_proportion(1.0)
 
-    simulation.set_custom_aircraft(n_rows=22, n_seats_left=3, n_seats_right=3)
-    simulation.set_passengers_proportion(1.0)
-
-    simulation.set_passengers_proportion(passengers_proportion)
-    simulation.set_seat_allocation(seat_allocation)
-    simulation.run_multiple(nb_simu)
+        simulation.set_passengers_proportion(passengers_proportion)
+        simulation.set_seat_allocation(seat_allocation)
+        simulation.run_multiple(nb_simu)
+        simulation.evaluate_missing_pax()
