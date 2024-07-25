@@ -14,7 +14,7 @@ TIME_STEP_DURATION = 2  # in seconds
 
 WALK_DURATION = 1  # in time steps
 STAND_UP_DURATION = 1  # in time steps
-COLLECT_BAGGAGE_DURATION = 1  # in time steps
+COLLECT_BAGGAGE_DURATION = 3  # in time steps
 MOVE_SEAT_DURATION = 1
 
 MAX_TIME = 24 * 60 * 60
@@ -26,6 +26,7 @@ class State(IntEnum):
     UNDEFINED = 0
     SEATED = 1
     STAND_UP_FROM_SEAT = 2
+    #todo: add collect baggage status
     MOVE_WAIT = 3
     MOVE_FROM_ROW = 4
     DEBOARDED = 5
@@ -132,12 +133,12 @@ class Simulation:
         if self.seat_allocation == SeatAllocation.CONNECTING_PRIORITY:
             connecting_times.sort()  # todo: implementer strategie allocation pax priority, add selected seat unassignable and first rows for business for instance
 
-        print("ok")
 
         # Create passengers
         # Add a dummy element so that passengers are 1-indexed. We do this so that 0 in self.aisle,  self.side_left etc. represents "no passenger"
         self.passengers = [None]
         for i, seat in enumerate(selected_seats):
+            has_bagage = np.random.choice([True, True,False])
             self.passengers.append(Passenger(seat_row=seat[0], seat=seat[1], slack_time=connecting_times[i], has_baggage=True))
             if (seat[1] < 0):
                 self.side_left[seat[0]][N_SEAT_LEFT + seat[1]] = i + 1
@@ -170,6 +171,7 @@ class Simulation:
         self.deboarding_time.append(self.t)
 
     # Process a single animation step.
+
     def step(self):
         # Process passengers.
         # This basically iterates over all the passengers, and performs appropriate actions based on their state.
@@ -187,13 +189,17 @@ class Simulation:
             match p.state:
                 case State.SEATED:
                     # If the first space in the aisle is empty, move there.
+                    r = np.random.randint(0,10000)
                     if p.x == -1:
                         if self.aisle[p.y] == 0:
-                            self.side_left[p.y][N_SEAT_LEFT - 1] = 0
-                            p.x = 0
-                            self.aisle[p.y] = i
-                            p.state = State.STAND_UP_FROM_SEAT
-                            p.next_action_t = self.t + STAND_UP_DURATION
+                            if (p.y+1 == len(self.aisle)) or (self.aisle[p.y+1] == 0) or (r>=0):
+                                self.side_left[p.y][N_SEAT_LEFT - 1] = 0
+                                p.x = 0
+                                self.aisle[p.y] = i
+                                p.state = State.STAND_UP_FROM_SEAT
+                                p.next_action_t = self.t + STAND_UP_DURATION
+                            else:
+                                p.next_action_t = self.t + 1
                         else:
                             p.next_action_t = self.t + 1
                     if p.x == 1:
@@ -288,9 +294,9 @@ class Simulation:
                 for entry in h:
                     f.write(' '.join(map(str, entry)) + '\n')
 
-            # Save baggage history.
-            for entry in self.history_baggage:
-                f.write(' '.join(map(str, entry)) + '\n')
+            # # Save baggage history.
+            # for entry in self.history_baggage:
+            #     f.write(' '.join(map(str, entry)) + '\n')
 
 
     def evaluate_missing_pax(self):
@@ -318,8 +324,8 @@ if __name__ == "__main__":
     for seat_allocation in [SeatAllocation.RANDOM,SeatAllocation.CONNECTING_PRIORITY]:
         simulation = Simulation(quiet_mode=True, dummy_rows=2)
 
-        simulation.set_custom_aircraft(n_rows=22, n_seats_left=3, n_seats_right=3)
-        simulation.set_passengers_proportion(1.0)
+        simulation.set_custom_aircraft(n_rows=30, n_seats_left=3, n_seats_right=3)
+        simulation.set_passengers_proportion(0.9)
 
         simulation.set_passengers_proportion(passengers_proportion)
         simulation.set_seat_allocation(seat_allocation)

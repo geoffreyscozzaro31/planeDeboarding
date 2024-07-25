@@ -26,7 +26,7 @@ def read_history(file_path):
     history = {}
 
     line_idx = 1
-    for t in range(1000):  # Maximum steps, adjust based on your data
+    for t in range(10000):  # Maximum steps, adjust based on your data
         if line_idx >= len(lines):
             break
         n_entries = int(lines[line_idx].strip())

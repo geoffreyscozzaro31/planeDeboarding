@@ -42,8 +42,8 @@ def save_deboarding_orders(simulation):
         simulation.set_seat_allocation(seat_allocation)
         simulation.reset()
 
-        print(seat_allocation)
-        simulation.print_deboarding_order()
+        # print(seat_allocation)
+        # simulation.print_deboarding_order()
 
         full_path = os.path.join(OUTPUT_DIR,
                                  f'{seat_allocation.name.lower()}_{simulation.n_rows}_{simulation.n_seats_left}_deboarding_order.txt')
@@ -66,7 +66,7 @@ def main():
 
     save_deboarding_orders(simulation)
     save_history(simulation, n=1)
-    measure_deboarding_time(simulation, n=5)
+    measure_deboarding_time(simulation, n=1)
 
 
 if __name__ == "__main__":
