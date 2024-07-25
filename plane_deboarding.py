@@ -114,7 +114,7 @@ class Simulation:
         # 2. Randomly select seat indices for every passenger
         # 3. Create seat's list (i-th seat corresponds to the )
         all_seats = list(list(x) for x in itertools.product(seat_rows, seat_cols))
-        all_seats.sort(key=lambda x :  100*x[0]+abs(x[1]))
+        all_seats.sort(key=lambda x: 100 * x[0] + abs(x[1]))
         selected_seats_ind = np.arange(self.n_passengers)
         # selected_seats_ind = np.random.choice(len(all_seats), size=self.n_passengers, replace=False)
         selected_seats = [all_seats[seat_ind] for seat_ind in selected_seats_ind]
@@ -125,8 +125,12 @@ class Simulation:
         # Create passengers
         # Add a dummy element so that passengers are 1-indexed. We do this so that 0 in self.aisle,  self.side_left etc. represents "no passenger"
         self.passengers = [None]
-        for seat in selected_seats:
+        for i, seat in enumerate(selected_seats):
             self.passengers.append(Passenger(seat_row=seat[0], seat=seat[1], connecting_time=0, has_baggage=False))
+            if (seat[1] < 0):
+                self.side_left[seat[0]][N_SEAT_LEFT + seat[1]] = i + 1
+            else:
+                self.side_right[seat[0]][seat[1] - 1] = i + 1
 
     def print_info(self, *args):
         if not self.quiet_mode:
@@ -149,7 +153,7 @@ class Simulation:
                 self.print()
 
             self.t += 1
-        print(f"Total minutes to deboard all pax: {round(self.t/60,2)}min")
+        print(f"Total minutes to deboard all pax: {round(self.t / 60, 2)}min")
         # Update stats
         self.deboarding_time.append(self.t)
 
@@ -159,9 +163,9 @@ class Simulation:
         # This basically iterates over all the passengers, and performs appropriate actions based on their state.
         deboarded_pax = 0  # Number of passengers already deboarded.
         still_pax_sitted = 0
-        #todo: itérer sur les passagers par ordre de priorité, de l'avant à l'arriere , et en fonction proximité couloir
+        # todo: itérer sur les passagers par ordre de priorité, de l'avant à l'arriere , et en fonction proximité couloir
         for i, p in enumerate(self.passengers):
-            if i==0 : continue
+            if i == 0: continue
 
             if p.state != State.DEBOARDED:
                 self.history[self.t].append([self.t, i, p.x, p.y, int(p.state)])
