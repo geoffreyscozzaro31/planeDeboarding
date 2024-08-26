@@ -1,12 +1,10 @@
+import itertools
 import logging
-import os
 from collections import defaultdict
-from dataclasses import dataclass, field
 from enum import Enum, IntEnum
 from typing import List
 
 import numpy as np
-import itertools
 
 BUFFER_TIME_GATE_CONNECTING = 5  # in minutes
 

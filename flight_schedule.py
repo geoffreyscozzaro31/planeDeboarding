@@ -3,8 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
-DAY_LABEL = "max_delay_day"
-# DAY_LABEL = "max_flight_day"
+# DAY_LABEL = "max_delay_day"
+DAY_LABEL = "max_flight_day"
 DATA_FOLDER = f"data/{DAY_LABEL}/"
 
 
@@ -35,23 +35,18 @@ def crop_flight_schedule():
     df = df.rename(columns=new_column_names)
     df = convert_str_date_to_date_time(df)
 
-    # Calcul du délai en secondes
     df['delay_seconds'] = (df['block_time'] - df['scheduled_time']).dt.total_seconds()
     df['day'] = df['scheduled_time'].dt.date
 
-    # 1. Trouver le jour avec le plus de vols
     vols_par_jour = df.groupby('day').size()
     jour_max_vols = vols_par_jour.idxmax()
 
-    # Extraire les vols du jour avec le plus de vols
     df_max_vols = df[df['day'] == jour_max_vols]
 
-    # 2. Trouver le jour avec le plus de retard total
     df_positive_delay = df[df['delay_seconds'] > 0]
     retard_par_jour = df_positive_delay.groupby('day')['delay_seconds'].sum()
     jour_max_retard = retard_par_jour.idxmax()
 
-    # Extraire les vols du jour avec le plus de retard total
     df_max_retard = df[df['day'] == jour_max_retard]
 
     df_max_vols.to_csv(DATA_FOLDER + "df_max_flights_2019_06_24.csv", index=False)
@@ -101,7 +96,6 @@ def generate_connecting_passenger_one_flight(arrival_row, df_departures: pd.Data
         for i in range(nb_connecting_pax):
             id_flight = np.random.choice(connected_flights_indices)
             connecting_passengers_dict[id_flight] +=1
-
         for flight_idx in connected_flights_indices:
             departure_row = df_departures.loc[flight_idx]
             transfer_time_theoretical = (departure_row['scheduled_time'] - arrival_time).total_seconds()
@@ -110,9 +104,9 @@ def generate_connecting_passenger_one_flight(arrival_row, df_departures: pd.Data
 
 
             new_entry = pd.DataFrame({
-                'arrival_flight_id': [arrival_row.name],  # Assurez-vous que `arrival_row` a un ID unique
+                'arrival_flight_id': [arrival_row.name],
                 'departure_flight_id': [flight_idx],
-                'nb_connecting_pax': [1],
+                'nb_connecting_pax': [int(connecting_passengers_dict[flight_idx])],
                 'transfer_time_theoretical': [transfer_time_theoretical],
                 'transfer_time_actual': [transfer_time_actual]
             })
@@ -136,9 +130,7 @@ def process_all_arrivals(filename):
         'transfer_time_theoretical', 'transfer_time_actual'
     ])
 
-    # Itérer sur chaque vol à l'arrivée
     for i, arrival_row in df_arrivals.iterrows():
-        # Appeler la méthode pour générer les passagers connectés pour ce vol
         print(f"Processing arrival flight {i} .... ")
         arrival_row, connecting_pax_df = generate_connecting_passenger_one_flight(arrival_row, df_departures,
                                                                                   connecting_pax_df)
@@ -150,44 +142,35 @@ def process_all_arrivals(filename):
 def display_connecting_pax_distribution():
     df = pd.read_csv(DATA_FOLDER+'connecting_passengers.csv')
 
-    # Convertir les temps de transfert de secondes en minutes
     df['transfer_time_theoretical_minutes'] = df['transfer_time_theoretical'] / 60
     df['transfer_time_actual_minutes'] = df['transfer_time_actual'] / 60
 
-    # Créer les histogrammes en utilisant les poids (nb_connecting_pax)
-    # Créer les bins pour l'histogramme
     min_transfer_time = min(df['transfer_time_theoretical_minutes'].min(), df['transfer_time_actual_minutes'].min())
     max_transfer_time = max(df['transfer_time_theoretical_minutes'].max(), df['transfer_time_actual_minutes'].max())
     bins = np.arange(np.floor(min_transfer_time), np.ceil(max_transfer_time) + 10, 10)
 
-    # Calculer le nombre total de passagers connectés pour chaque intervalle
     theoretical_histogram, _ = np.histogram(df['transfer_time_theoretical_minutes'], bins=bins,
                                             weights=df['nb_connecting_pax'])
     actual_histogram, _ = np.histogram(df['transfer_time_actual_minutes'], bins=bins, weights=df['nb_connecting_pax'])
 
-    # Créer la figure et les axes pour les sous-graphes
     fig, ax = plt.subplots(2, 1, figsize=(10, 8))
 
-    # Paramètres pour agrandir les polices
     title_fontsize = 18
     label_fontsize = 16
     tick_fontsize = 14
 
-    # Tracer l'histogramme des temps de transfert théorique
     ax[0].bar(bins[:-1], theoretical_histogram, width=np.diff(bins), edgecolor='black', alpha=0.7)
     ax[0].set_title('Distribution of Theoretical Transfer Times', fontsize=title_fontsize)
     ax[0].set_xlabel('Transfer Time (minutes)', fontsize=label_fontsize)
     ax[0].set_ylabel('Total Number of Connecting Passengers', fontsize=label_fontsize)
     ax[0].tick_params(axis='both', which='major', labelsize=tick_fontsize)
 
-    # Tracer l'histogramme des temps de transfert réels
     ax[1].bar(bins[:-1], actual_histogram, width=np.diff(bins), edgecolor='black', alpha=0.7, color='orange')
     ax[1].set_title('Distribution of Actual Transfer Times', fontsize=title_fontsize)
     ax[1].set_xlabel('Transfer Time (minutes)', fontsize=label_fontsize)
     ax[1].set_ylabel('Number of Connecting Passengers', fontsize=label_fontsize)
     ax[1].tick_params(axis='both', which='major', labelsize=tick_fontsize)
 
-    # Ajuster l'affichage
     plt.tight_layout()
     plt.savefig(f"medias/connecting_passengers_distribution/{DAY_LABEL}/transfer_time_distribution_{DAY_LABEL}.png")
     # plt.show()
@@ -196,9 +179,9 @@ def display_connecting_pax_distribution():
 
 
 if __name__ == "__main__":
-    # filename = DATA_FOLDER + "df_max_flights_2019_06_24.csv"
-    filename = DATA_FOLDER + "df_max_delay_2019_06_07.csv"
-    # connecting_pax_df = process_all_arrivals(filename)
+    filename = DATA_FOLDER + "df_max_flights_2019_06_24.csv"
+    # filename = DATA_FOLDER + "df_max_delay_2019_06_07.csv"
+    connecting_pax_df = process_all_arrivals(filename)
 
     # print("Connecting passengers DataFrame:")
     # print(connecting_pax_df)
