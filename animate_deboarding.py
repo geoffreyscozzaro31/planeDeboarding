@@ -7,7 +7,7 @@ from enum import IntEnum
 FILE_PATH = 'medias/deboarding/random_1.0_32_3_history_0.txt'
 
 NB_STEPS = 6
-PAUSE_TIME = 0.002  # in seconds
+INTERVAL = 2  # in seconds
 
 
 class State(IntEnum):
@@ -132,16 +132,16 @@ def generate_animation(save_animation=False):
     frame_number = 0
     update(frame_number)  # Render the first frame (frame index 0)
     plt.savefig(f'medias/deboarding/frames/frame_{frame_number}.png', bbox_inches="tight")
-    ani = FuncAnimation(fig, update, frames=frames, interval=PAUSE_TIME * 1000, blit=True)
+    ani = FuncAnimation(fig, update, frames=frames, interval=2, blit=True)
 
     if save_animation:
-        nb_fps = 60
-        ani.save(f'medias/deboarding/animations/animation_{PAUSE_TIME}s_{nb_fps}fps.gif', writer='pillow', fps=nb_fps,
-                 progress_callback=lambda i, n: print(f'Saving frame {i}/{len(frames)}'))
+        nb_fps = 45
+        ani.save(f'medias/deboarding/animations/animation_{INTERVAL}_interval_{nb_fps}fps.gif', writer='pillow',
+                 fps=nb_fps, progress_callback=lambda i, n: print(f'Saving frame {i}/{len(frames)}'))
         print("ani saved ! ")
     else:
         plt.show()
 
 
 if __name__ == "__main__":
-    generate_animation(save_animation=False)
+    generate_animation(save_animation=True)
