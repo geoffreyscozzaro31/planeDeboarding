@@ -135,7 +135,7 @@ def generate_animation(save_animation=False):
     ani = FuncAnimation(fig, update, frames=frames, interval=PAUSE_TIME * 1000, blit=True)
 
     if save_animation:
-        nb_fps = 30
+        nb_fps = 60
         ani.save(f'medias/deboarding/animations/animation_{PAUSE_TIME}s_{nb_fps}fps.gif', writer='pillow', fps=nb_fps,
                  progress_callback=lambda i, n: print(f'Saving frame {i}/{len(frames)}'))
         print("ani saved ! ")
