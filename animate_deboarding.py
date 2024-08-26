@@ -136,7 +136,7 @@ def generate_animation(save_animation=False):
 
     if save_animation:
         nb_fps = 45
-        ani.save(f'medias/deboarding/animations/animation_{INTERVAL}_interval_{nb_fps}fps.gif', writer='pillow',
+        ani.save(f'medias/deboarding/animations/animation_deboarding_courtesy_rule_{nb_fps}fps.gif', writer='pillow',
                  fps=nb_fps, progress_callback=lambda i, n: print(f'Saving frame {i}/{len(frames)}'))
         print("ani saved ! ")
     else:

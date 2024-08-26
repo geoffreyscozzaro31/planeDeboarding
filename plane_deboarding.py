@@ -189,7 +189,7 @@ class Simulation:
                             if self.side_left[p.y][2] != 0 and (r2 > 0):
                                 p.next_action_t = self.t + 1
                             else:
-                                if (p.y + 1 == len(self.aisle)) or (self.aisle[p.y + 1] == 0) or (r1 < 0):
+                                if (p.y + 1 == len(self.aisle)) or (self.aisle[p.y + 1] == 0) or (r1 >= 0):
                                     self.side_right[p.y][0] = 0
                                     p.x = 0
                                     self.aisle[p.y] = i
