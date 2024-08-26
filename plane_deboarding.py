@@ -26,7 +26,7 @@ class State(IntEnum):
     UNDEFINED = 0
     SEATED = 1
     STAND_UP_FROM_SEAT = 2
-    #todo: add collect baggage status
+    # todo: add collect baggage status
     MOVE_WAIT = 3
     MOVE_FROM_ROW = 4
     DEBOARDED = 5
@@ -133,13 +133,12 @@ class Simulation:
         if self.seat_allocation == SeatAllocation.CONNECTING_PRIORITY:
             connecting_times.sort()  # todo: implementer strategie allocation pax priority, add selected seat unassignable and first rows for business for instance
 
-
-        # Create passengers
         # Add a dummy element so that passengers are 1-indexed. We do this so that 0 in self.aisle,  self.side_left etc. represents "no passenger"
         self.passengers = [None]
         for i, seat in enumerate(selected_seats):
-            has_bagage = np.random.choice([True, True,False])
-            self.passengers.append(Passenger(seat_row=seat[0], seat=seat[1], slack_time=connecting_times[i], has_baggage=True))
+            has_bagage = np.random.choice([True, True, False])
+            self.passengers.append(
+                Passenger(seat_row=seat[0], seat=seat[1], slack_time=connecting_times[i], has_baggage=has_bagage))
             if (seat[1] < 0):
                 self.side_left[seat[0]][N_SEAT_LEFT + seat[1]] = i + 1
             else:
@@ -177,7 +176,7 @@ class Simulation:
         # This basically iterates over all the passengers, and performs appropriate actions based on their state.
         deboarded_pax = 0  # Number of passengers already deboarded.
         still_pax_sitted = 0
-        # todo: itérer sur les passagers par ordre de priorité, de l'avant à l'arriere , et en fonction proximité couloir
+
         for i, p in enumerate(self.passengers):
             if i == 0: continue
 
@@ -189,22 +188,27 @@ class Simulation:
             match p.state:
                 case State.SEATED:
                     # If the first space in the aisle is empty, move there.
-                    r = np.random.randint(0,10000)
-                    if p.x == -1:
-                        if self.aisle[p.y] == 0:
-                            if (p.y+1 == len(self.aisle)) or (self.aisle[p.y+1] == 0) or (r>=0):
-                                self.side_left[p.y][N_SEAT_LEFT - 1] = 0
-                                p.x = 0
-                                self.aisle[p.y] = i
-                                p.state = State.STAND_UP_FROM_SEAT
-                                p.next_action_t = self.t + STAND_UP_DURATION
-                            else:
-                                p.next_action_t = self.t + 1
-                        else:
-                            p.next_action_t = self.t + 1
+                    r1 = np.random.randint(0, 10000)
+                    r2 = np.random.randint(0, 2)
+                    #
                     if p.x == 1:
                         if self.aisle[p.y] == 0:
-                            self.side_right[p.y][0] = 0
+                            if self.side_left[p.y][2] != 0 and (r2 > 0):
+                                p.next_action_t = self.t + 1
+                            else:
+                                if (p.y + 1 == len(self.aisle)) or (self.aisle[p.y + 1] == 0) or (r1 < 0):
+                                    self.side_right[p.y][0] = 0
+                                    p.x = 0
+                                    self.aisle[p.y] = i
+                                    p.state = State.STAND_UP_FROM_SEAT
+                                    p.next_action_t = self.t + STAND_UP_DURATION
+                                else:
+                                    p.next_action_t = self.t + 1
+                        else:
+                            p.next_action_t = self.t + 1
+                    if p.x == -1:
+                        if self.aisle[p.y] == 0:
+                            self.side_left[p.y][N_SEAT_LEFT - 1] = 0
                             p.x = 0
                             self.aisle[p.y] = i
                             p.state = State.STAND_UP_FROM_SEAT
@@ -298,14 +302,13 @@ class Simulation:
             # for entry in self.history_baggage:
             #     f.write(' '.join(map(str, entry)) + '\n')
 
-
     def evaluate_missing_pax(self):
         "iterate over pax and test if deboarding time > slack time"
         nb_missed_pax = 0
         nb_deboarded_pax = 0
         # print(self.passengers)
         for i, passenger in enumerate(self.passengers):
-            if i ==0: continue
+            if i == 0: continue
 
             if passenger.deboarding_time < 0:
                 logging.warning(f"Error when computing deboarding time of passenger {i}")
@@ -320,8 +323,9 @@ class Simulation:
 if __name__ == "__main__":
     nb_simu = 1
     passengers_proportion = 0.8
-    seat_allocation = SeatAllocation.CONNECTING_PRIORITY
-    for seat_allocation in [SeatAllocation.RANDOM,SeatAllocation.CONNECTING_PRIORITY]:
+    # seat_allocation = SeatAllocation.RANDOM
+    # seat_allocation = SeatAllocation.CONNECTING_PRIORITY
+    for seat_allocation in [SeatAllocation.RANDOM, SeatAllocation.CONNECTING_PRIORITY]:
         simulation = Simulation(quiet_mode=True, dummy_rows=2)
 
         simulation.set_custom_aircraft(n_rows=30, n_seats_left=3, n_seats_right=3)
@@ -331,3 +335,7 @@ if __name__ == "__main__":
         simulation.set_seat_allocation(seat_allocation)
         simulation.run_multiple(nb_simu)
         simulation.evaluate_missing_pax()
+
+# todo : utiliser loi weibull avec param papier schultz pour simuler collecting luggage
+# todo: add a  dummy row between two rows for the aisle (according shultz model)
+##odg: if 29 row with 100% occuoancy, deboarding time around 299 s

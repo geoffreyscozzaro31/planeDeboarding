@@ -7,7 +7,7 @@ from enum import IntEnum
 FILE_PATH = 'medias/deboarding/random_1.0_16_3_history_0.txt'
 
 NB_STEPS = 6
-PAUSE_TIME = 0.05  # in seconds
+PAUSE_TIME = 0.002  # in seconds
 
 class State(IntEnum):
     SEATED = 1
