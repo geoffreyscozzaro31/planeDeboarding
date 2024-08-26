@@ -8,7 +8,7 @@ import numpy as np
 
 BUFFER_TIME_GATE_CONNECTING = 5  # in minutes
 
-TIME_STEP_DURATION = 3  # in seconds
+TIME_STEP_DURATION = 2  # in seconds
 
 WALK_DURATION = 1 # in time steps
 STAND_UP_DURATION = 2  # in time steps
@@ -19,6 +19,8 @@ MAX_TIME = 24 * 60 * 60
 
 N_SEAT_LEFT = 3
 
+
+IS_COURTESY_RULE  = True
 
 class State(IntEnum):
     UNDEFINED = 0
@@ -158,7 +160,7 @@ class Simulation:
                 self.print()
 
             self.t += 1
-        print(f"Total minutes to deboard all pax: {round(self.t*TIME_STEP_DURATION / 60, 2)}min")
+        print(f"Total minutes to deboard all pax: {BUFFER_TIME_GATE_CONNECTING + round(self.t*TIME_STEP_DURATION / 60, 2)}min")
         # Update stats
         self.deboarding_time.append(self.t)
 
@@ -189,7 +191,7 @@ class Simulation:
                             if self.side_left[p.y][2] != 0 and (r2 > 0):
                                 p.next_action_t = self.t + 1
                             else:
-                                if (p.y + 1 == len(self.aisle)) or (self.aisle[p.y + 1] == 0) or (r1 >= 0):
+                                if IS_COURTESY_RULE or (p.y + 1 == len(self.aisle)) or (self.aisle[p.y + 1] == 0):
                                     self.side_right[p.y][0] = 0
                                     p.x = 0
                                     self.aisle[p.y] = i
@@ -310,7 +312,7 @@ class Simulation:
                     nb_missed_pax += 1
                 nb_deboarded_pax += 1
         print(f"Total missed pax: {nb_missed_pax}")
-        print(f"Percentage missed pax: {100 * round(nb_missed_pax / nb_deboarded_pax, 3)}%")
+        print(f"Percentage missed pax: {round(100*nb_missed_pax / nb_deboarded_pax, 2)}%")
 
 
 if __name__ == "__main__":
