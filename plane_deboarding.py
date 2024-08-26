@@ -8,12 +8,12 @@ import numpy as np
 
 BUFFER_TIME_GATE_CONNECTING = 5  # in minutes
 
-TIME_STEP_DURATION = 2  # in seconds
+TIME_STEP_DURATION = 3  # in seconds
 
-WALK_DURATION = 1  # in time steps
-STAND_UP_DURATION = 1  # in time steps
+WALK_DURATION = 1 # in time steps
+STAND_UP_DURATION = 2  # in time steps
 COLLECT_BAGGAGE_DURATION = 3  # in time steps
-MOVE_SEAT_DURATION = 1
+MOVE_SEAT_DURATION = 2
 
 MAX_TIME = 24 * 60 * 60
 
@@ -51,18 +51,17 @@ class Passenger:
 
 class Simulation:
     def __init__(self, dummy_rows=2, quiet_mode=True):
-        self.dummy_rows = dummy_rows  # We add dummy rows to have some space before the actual seats appear.
+        self.dummy_rows = dummy_rows  # Add fictive rows  to model empty space at the top of the aircraft
         self.passengers: List[Passenger] = []
         self.t = 0
         self.history = defaultdict(list)
         self.history_baggage = []
-        self.row_vacating = {}
         self.seat_allocation = SeatAllocation.RANDOM
         self.quiet_mode = quiet_mode
         self.reset_stats()
 
     def set_custom_aircraft(self, n_rows, n_seats_left=2, n_seats_right=2):
-        self.n_rows = n_rows
+        self.n_rows = 2*n_rows
         self.n_seats_left = n_seats_left
         self.n_seats_right = n_seats_right
 
@@ -70,7 +69,7 @@ class Simulation:
         self.n_passengers = n
 
     def set_passengers_proportion(self, proportion):
-        capacity = self.n_rows * (self.n_seats_left + self.n_seats_right)
+        capacity = self.n_rows * (self.n_seats_left + self.n_seats_right)//2
         self.n_passengers = int(proportion * capacity)
 
     def set_seat_allocation(self, seat_allocation):
@@ -84,10 +83,6 @@ class Simulation:
             row = list(self.side_left[i, :][::-1]) + ['|', '[' + str(self.baggage_bin[i][0]) + ']', self.aisle[i],
                                                       '[' + str(self.baggage_bin[i][1]) + ']', '|'] + list(
                 self.side_right[i, :])
-            if i in self.row_vacating:
-                row.append('vacating')
-                row.append(self.row_vacating[i].passengers)
-                row.append(self.row_vacating[i].next_action_t)
             self.print_info(row)
 
     def print_deboarding_order(self):
@@ -100,19 +95,19 @@ class Simulation:
         self.history = defaultdict(list)
         self.history_baggage = []
 
-        self.side_left = np.zeros((self.n_rows + self.dummy_rows, self.n_seats_left), dtype=int)
-        self.side_right = np.zeros((self.n_rows + self.dummy_rows, self.n_seats_right), dtype=int)
-        self.aisle = np.zeros(self.n_rows + self.dummy_rows, dtype=int)
-        self.baggage_bin = np.zeros((self.n_rows + self.dummy_rows, 2), dtype=int)
+        self.side_left = np.zeros((self.n_rows*2 + self.dummy_rows, self.n_seats_left), dtype=int)
+        self.side_right = np.zeros((self.n_rows*2 + self.dummy_rows, self.n_seats_right), dtype=int)
+        self.aisle = np.zeros(self.n_rows*2 + self.dummy_rows, dtype=int)
+        self.baggage_bin = np.zeros((self.n_rows*2 + self.dummy_rows, 2), dtype=int)
 
-        self.deboarding_order_left = np.zeros((self.n_rows + self.dummy_rows, self.n_seats_left), dtype=int)
-        self.deboarding_order_right = np.zeros((self.n_rows + self.dummy_rows, self.n_seats_right), dtype=int)
+        self.deboarding_order_left = np.zeros((self.n_rows*2 + self.dummy_rows, self.n_seats_left), dtype=int)
+        self.deboarding_order_right = np.zeros((self.n_rows*2 + self.dummy_rows, self.n_seats_right), dtype=int)
 
         self.randomize_passengers()
 
     def randomize_passengers(self):
         seat_cols = set(range(-self.n_seats_left, self.n_seats_right + 1)) - {0}  # Possible seats
-        seat_rows = range(self.dummy_rows, self.n_rows + self.dummy_rows)  # Possible rows
+        seat_rows = np.array(range(self.dummy_rows, self.n_rows + self.dummy_rows))*2  # Possible rows
 
         # 1. Get all seats on the plane
         #    Every seat is described by a 3-element list: [row, column, boarding zone]
@@ -163,11 +158,11 @@ class Simulation:
                 self.print()
 
             self.t += 1
-        print(f"Total minutes to deboard all pax: {round(self.t / 60, 2)}min")
+        print(f"Total minutes to deboard all pax: {round(self.t*TIME_STEP_DURATION / 60, 2)}min")
         # Update stats
         self.deboarding_time.append(self.t)
 
-    # Process a single animation step.
+    # Process a single animations step.
 
     def step(self):
         # Process passengers.
@@ -335,5 +330,3 @@ if __name__ == "__main__":
         simulation.evaluate_missing_pax()
 
 # todo : utiliser loi weibull avec param papier schultz pour simuler collecting luggage
-# todo: add a  dummy row between two rows for the aisle (according shultz model)
-##odg: if 29 row with 100% occuoancy, deboarding time around 299 s

@@ -4,16 +4,18 @@ from matplotlib.animation import FuncAnimation
 from matplotlib.colors import ListedColormap
 from enum import IntEnum
 
-FILE_PATH = 'medias/deboarding/random_1.0_16_3_history_0.txt'
+FILE_PATH = 'medias/deboarding/random_1.0_32_3_history_0.txt'
 
 NB_STEPS = 6
 PAUSE_TIME = 0.002  # in seconds
+
 
 class State(IntEnum):
     SEATED = 1
     STAND_UP_FROM_SEAT = 2
     MOVE_WAIT = 3
     MOVE_FROM_ROW = 4
+
 
 def read_history(file_path):
     with open(file_path, 'r') as f:
@@ -43,13 +45,15 @@ def read_history(file_path):
 
 
 # Define the colors for each state
-state_colors = ['#1f77b4', '#ff7f0e','#d62728', '#2ca02c']
+state_colors = ['#1f77b4', '#ff7f0e', '#d62728', '#2ca02c']
 cmap = ListedColormap(state_colors)
-norm = plt.Normalize(vmin=0, vmax=len(State)-0.5)
+norm = plt.Normalize(vmin=0, vmax=len(State) - 0.5)
+
 
 # Function to interpolate positions
 def interpolate_positions(start, end, steps):
     return np.linspace(start, end, steps)
+
 
 # Function to generate fictive steps
 def generate_fictive_steps(history, steps):
@@ -63,7 +67,7 @@ def generate_fictive_steps(history, steps):
 
                 # Find previous state
                 if t > 0:
-                    prev_state = history[t-1]
+                    prev_state = history[t - 1]
                     prev_entry = next((e for e in prev_state if e[1] == pax_id), entry)
                     prev_x_pos, prev_y_pos = prev_entry[2], prev_entry[3]
                 else:
@@ -80,24 +84,18 @@ def generate_fictive_steps(history, steps):
     return new_history
 
 
-
-
-if __name__ == "__main__":
-    # Read history from file
+def generate_animation(save_animation=False):
     history, n_rows, dummy_rows, n_seats_left, n_seats_right, n_passengers, n_baggage_events = read_history(FILE_PATH)
 
-    # Generate fictive steps
     history_with_fictive_steps = generate_fictive_steps(history, NB_STEPS)
 
-    # Initialize plot
-    fig, ax = plt.subplots(figsize=(12, 8))
+    fig, ax = plt.subplots(figsize=(6, 12))
     ax.set_xlim(-n_seats_left - 1, n_seats_right + 1)
     ax.set_ylim(-1, n_rows + dummy_rows)
     ax.set_xticks(np.arange(-n_seats_left, n_seats_right + 1))
     ax.set_yticks(np.arange(n_rows + dummy_rows))
     plt.gca().invert_yaxis()
 
-    # Add grid and labels
     ax.grid(True, linestyle='--', alpha=0.6)
     ax.set_xlabel('Seat Columns')
     ax.set_ylabel('Rows')
@@ -107,7 +105,7 @@ if __name__ == "__main__":
     cbar = plt.colorbar(scat, ax=ax, ticks=np.arange(1, len(State) + 1))
     cbar.ax.set_yticklabels([state.name for state in State])
     cbar.set_label('Passenger State')
-    # Plot function
+
     def plot_state(state):
         x = []
         y = []
@@ -122,7 +120,7 @@ if __name__ == "__main__":
 
         return np.c_[x, y], np.array(c)
 
-    # Update function for animation
+    # Update function for animations
     def update(frame):
         state = history_with_fictive_steps[frame]
         positions, colors = plot_state(state)
@@ -130,10 +128,20 @@ if __name__ == "__main__":
         scat.set_array(colors)
         return scat,
 
-    # Get all state keys for animation frames
     frames = list(history_with_fictive_steps.keys())
-
-    # Create animation
+    frame_number = 0
+    update(frame_number)  # Render the first frame (frame index 0)
+    plt.savefig(f'medias/deboarding/frames/frame_{frame_number}.png', bbox_inches="tight")
     ani = FuncAnimation(fig, update, frames=frames, interval=PAUSE_TIME * 1000, blit=True)
 
-    plt.show()
+    if save_animation:
+        nb_fps = 30
+        ani.save(f'medias/deboarding/animations/animation_{PAUSE_TIME}s_{nb_fps}fps.gif', writer='pillow', fps=nb_fps,
+                 progress_callback=lambda i, n: print(f'Saving frame {i}/{len(frames)}'))
+        print("ani saved ! ")
+    else:
+        plt.show()
+
+
+if __name__ == "__main__":
+    generate_animation(save_animation=False)
