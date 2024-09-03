@@ -6,30 +6,17 @@ from typing import List
 
 import numpy as np
 
-BUFFER_TIME_GATE_CONNECTING = 5  # in minutes
+from config_deboarding import *
 
-TIME_STEP_DURATION = 2  # in seconds
-
-WALK_DURATION = 1 # in time steps
-STAND_UP_DURATION = 2  # in time steps
-COLLECT_BAGGAGE_DURATION = 3  # in time steps
-MOVE_SEAT_DURATION = 2
-
-MAX_TIME = 24 * 60 * 60
-
-N_SEAT_LEFT = 3
-
-
-IS_COURTESY_RULE  = True
 
 class State(IntEnum):
     UNDEFINED = 0
     SEATED = 1
     STAND_UP_FROM_SEAT = 2
-    # todo: add collect baggage status
+    # todo: add collect luggage status
     MOVE_WAIT = 3
     MOVE_FROM_ROW = 4
-    DEBOARDED = 5
+    DISEMBARKED = 5
 
 
 class SeatAllocation(Enum):
@@ -38,12 +25,12 @@ class SeatAllocation(Enum):
 
 
 class Passenger:
-    def __init__(self, seat_row, seat, slack_time, has_baggage):
+    def __init__(self, seat_row, seat, slack_time, has_luggage):
         self.seat_row = seat_row
         self.seat = seat  # seat number (e.g. 1-3 for places on the right, negative numbers for places to the left)
         self.slack_time = slack_time  # = max deboarding time (in minutes) authorised for this pax before missing its next flight, set to np.inf if not connecting pax
         self.deboarding_time = -1
-        self.has_baggage = has_baggage
+        self.has_luggage = has_luggage
         self.state = State.SEATED
         self.x = seat
         self.y = seat_row
@@ -57,13 +44,13 @@ class Simulation:
         self.passengers: List[Passenger] = []
         self.t = 0
         self.history = defaultdict(list)
-        self.history_baggage = []
+        self.history_luggage = []
         self.seat_allocation = SeatAllocation.RANDOM
         self.quiet_mode = quiet_mode
         self.reset_stats()
 
     def set_custom_aircraft(self, n_rows, n_seats_left=2, n_seats_right=2):
-        self.n_rows = 2*n_rows
+        self.n_rows = 2 * n_rows
         self.n_seats_left = n_seats_left
         self.n_seats_right = n_seats_right
 
@@ -71,7 +58,7 @@ class Simulation:
         self.n_passengers = n
 
     def set_passengers_proportion(self, proportion):
-        capacity = self.n_rows * (self.n_seats_left + self.n_seats_right)//2
+        capacity = self.n_rows * (self.n_seats_left + self.n_seats_right) // 2
         self.n_passengers = int(proportion * capacity)
 
     def set_seat_allocation(self, seat_allocation):
@@ -82,8 +69,8 @@ class Simulation:
 
     def print(self):
         for i in range(self.n_rows + self.dummy_rows):
-            row = list(self.side_left[i, :][::-1]) + ['|', '[' + str(self.baggage_bin[i][0]) + ']', self.aisle[i],
-                                                      '[' + str(self.baggage_bin[i][1]) + ']', '|'] + list(
+            row = list(self.side_left[i, :][::-1]) + ['|', '[' + str(self.luggage_bin[i][0]) + ']', self.aisle[i],
+                                                      '[' + str(self.luggage_bin[i][1]) + ']', '|'] + list(
                 self.side_right[i, :])
             self.print_info(row)
 
@@ -95,21 +82,21 @@ class Simulation:
     def reset(self):
         self.t = 0
         self.history = defaultdict(list)
-        self.history_baggage = []
+        self.history_luggage = []
 
-        self.side_left = np.zeros((self.n_rows*2 + self.dummy_rows, self.n_seats_left), dtype=int)
-        self.side_right = np.zeros((self.n_rows*2 + self.dummy_rows, self.n_seats_right), dtype=int)
-        self.aisle = np.zeros(self.n_rows*2 + self.dummy_rows, dtype=int)
-        self.baggage_bin = np.zeros((self.n_rows*2 + self.dummy_rows, 2), dtype=int)
+        self.side_left = np.zeros((self.n_rows * 2 + self.dummy_rows, self.n_seats_left), dtype=int)
+        self.side_right = np.zeros((self.n_rows * 2 + self.dummy_rows, self.n_seats_right), dtype=int)
+        self.aisle = np.zeros(self.n_rows * 2 + self.dummy_rows, dtype=int)
+        self.luggage_bin = np.zeros((self.n_rows * 2 + self.dummy_rows, 2), dtype=int)
 
-        self.deboarding_order_left = np.zeros((self.n_rows*2 + self.dummy_rows, self.n_seats_left), dtype=int)
-        self.deboarding_order_right = np.zeros((self.n_rows*2 + self.dummy_rows, self.n_seats_right), dtype=int)
+        self.deboarding_order_left = np.zeros((self.n_rows * 2 + self.dummy_rows, self.n_seats_left), dtype=int)
+        self.deboarding_order_right = np.zeros((self.n_rows * 2 + self.dummy_rows, self.n_seats_right), dtype=int)
 
         self.randomize_passengers()
 
     def randomize_passengers(self):
         seat_cols = set(range(-self.n_seats_left, self.n_seats_right + 1)) - {0}  # Possible seats
-        seat_rows = np.array(range(self.dummy_rows, self.n_rows + self.dummy_rows))*2  # Possible rows
+        seat_rows = np.array(range(self.dummy_rows, self.n_rows + self.dummy_rows)) * 2  # Possible rows
 
         # 1. Get all seats on the plane
         #    Every seat is described by a 3-element list: [row, column, boarding zone]
@@ -133,7 +120,7 @@ class Simulation:
         for i, seat in enumerate(selected_seats):
             has_bagage = np.random.choice([True, True, False])
             self.passengers.append(
-                Passenger(seat_row=seat[0], seat=seat[1], slack_time=connecting_times[i], has_baggage=has_bagage))
+                Passenger(seat_row=seat[0], seat=seat[1], slack_time=connecting_times[i], has_luggage=has_bagage))
             if (seat[1] < 0):
                 self.side_left[seat[0]][N_SEAT_LEFT + seat[1]] = i + 1
             else:
@@ -160,7 +147,8 @@ class Simulation:
                 self.print()
 
             self.t += 1
-        print(f"Total minutes to deboard all pax: {BUFFER_TIME_GATE_CONNECTING + round(self.t*TIME_STEP_DURATION / 60, 2)}min")
+        print(
+            f"Total minutes to disembark all pax: {BUFFER_TIME_GATE_CONNECTING + round(self.t * TIME_STEP_DURATION / 60, 2)}min")
         # Update stats
         self.deboarding_time.append(self.t)
 
@@ -175,7 +163,7 @@ class Simulation:
         for i, p in enumerate(self.passengers):
             if i == 0: continue
 
-            if p.state != State.DEBOARDED:
+            if p.state != State.DISEMBARKED:
                 self.history[self.t].append([self.t, i, p.x, p.y, int(p.state)])
 
             if p.next_action_t > self.t:
@@ -228,12 +216,12 @@ class Simulation:
                             p.next_action_t = self.t + 1
                     still_pax_sitted += 1
                 case State.STAND_UP_FROM_SEAT:
-                    if p.has_baggage:
+                    if p.has_luggage:
                         p.state = State.MOVE_WAIT
                         p.next_action_t = self.t + COLLECT_BAGGAGE_DURATION
                         ind = 0 if p.seat < 0 else 1
-                        self.baggage_bin[p.seat_row][ind] += 1
-                        self.history_baggage.append([self.t, p.seat_row, ind])
+                        self.luggage_bin[p.seat_row][ind] += 1
+                        self.history_luggage.append([self.t, p.seat_row, ind])
                     elif self.aisle[p.y - 1] != 0:
                         p.state = State.MOVE_WAIT
                         p.next_action_t = self.t + 1
@@ -257,7 +245,7 @@ class Simulation:
                     self.aisle[p.y] = i
                 case State.MOVE_FROM_ROW:
                     if p.y == 0:
-                        p.state = State.DEBOARDED
+                        p.state = State.DISEMBARKED
                         self.aisle[p.y] = 0
                         p.deboarding_time = (self.t * TIME_STEP_DURATION) // 60 + BUFFER_TIME_GATE_CONNECTING
                         deboarded_pax += 1
@@ -269,7 +257,7 @@ class Simulation:
                             self.aisle[p.y] = 0
                             p.y -= 1
                             self.aisle[p.y] = i
-                case State.DEBOARDED:
+                case State.DISEMBARKED:
                     deboarded_pax += 1
 
                 case _:
@@ -285,7 +273,7 @@ class Simulation:
         with open(path, 'w') as f:
             # General parameters in the header.
             f.write(
-                f'{self.n_rows} {self.dummy_rows} {self.n_seats_left} {self.n_seats_right} {self.n_passengers} {len(self.history_baggage)}\n')
+                f'{self.n_rows} {self.dummy_rows} {self.n_seats_left} {self.n_seats_right} {self.n_passengers} {len(self.history_luggage)}\n')
 
             # Save passengers' history.
             for id, h in self.history.items():
@@ -293,8 +281,8 @@ class Simulation:
                 for entry in h:
                     f.write(' '.join(map(str, entry)) + '\n')
 
-            # # Save baggage history.
-            # for entry in self.history_baggage:
+            # # Save luggage history.
+            # for entry in self.history_luggage:
             #     f.write(' '.join(map(str, entry)) + '\n')
 
     def evaluate_missing_pax(self):
@@ -312,7 +300,7 @@ class Simulation:
                     nb_missed_pax += 1
                 nb_deboarded_pax += 1
         print(f"Total missed pax: {nb_missed_pax}")
-        print(f"Percentage missed pax: {round(100*nb_missed_pax / nb_deboarded_pax, 2)}%")
+        print(f"Percentage missed pax: {round(100 * nb_missed_pax / nb_deboarded_pax, 2)}%")
 
 
 if __name__ == "__main__":

@@ -3,16 +3,19 @@ import numpy as np
 from matplotlib.animation import FuncAnimation
 from matplotlib.colors import ListedColormap
 from enum import IntEnum
+from config_deboarding import *
 
-FILE_PATH = 'medias/deboarding/random_1.0_32_3_history_0.txt'
+
+FILE_PATH = f"medias/deboarding/random_{DISEMBARKING_RULE_NAME}_100pct_32_3_history_0.txt"
 
 NB_STEPS = 6
 INTERVAL = 2  # in seconds
 
 
+
 class State(IntEnum):
     SEATED = 1
-    STAND_UP_FROM_SEAT = 2
+    STANDUP_FROM_SEAT = 2
     MOVE_WAIT = 3
     MOVE_FROM_ROW = 4
 
@@ -22,7 +25,7 @@ def read_history(file_path):
         lines = f.readlines()
 
     # Extract general parameters
-    n_rows, dummy_rows, n_seats_left, n_seats_right, n_passengers, n_baggage_events = map(int, lines[0].split())
+    n_rows, dummy_rows, n_seats_left, n_seats_right, n_passengers, n_luggage_events = map(int, lines[0].split())
 
     # Initialize history
     history = {}
@@ -41,7 +44,7 @@ def read_history(file_path):
             history[t].append(entry)
             line_idx += 1
 
-    return history, n_rows, dummy_rows, n_seats_left, n_seats_right, n_passengers, n_baggage_events
+    return history, n_rows, dummy_rows, n_seats_left, n_seats_right, n_passengers, n_luggage_events
 
 
 # Define the colors for each state
@@ -85,21 +88,22 @@ def generate_fictive_steps(history, steps):
 
 
 def generate_animation(save_animation=False):
-    history, n_rows, dummy_rows, n_seats_left, n_seats_right, n_passengers, n_baggage_events = read_history(FILE_PATH)
+    history, n_rows, dummy_rows, n_seats_left, n_seats_right, n_passengers, n_luggage_events = read_history(FILE_PATH)
 
     history_with_fictive_steps = generate_fictive_steps(history, NB_STEPS)
 
-    fig, ax = plt.subplots(figsize=(6, 12))
+    fig, ax = plt.subplots(figsize=(10, 12))
+
     ax.set_xlim(-n_seats_left - 1, n_seats_right + 1)
     ax.set_ylim(-1, n_rows + dummy_rows)
     ax.set_xticks(np.arange(-n_seats_left, n_seats_right + 1))
     ax.set_yticks(np.arange(n_rows + dummy_rows))
     plt.gca().invert_yaxis()
-
+    fontsize = 16
     ax.grid(True, linestyle='--', alpha=0.6)
-    ax.set_xlabel('Seat Columns')
-    ax.set_ylabel('Rows')
-    ax.set_title('Passenger Deboarding Animation')
+    ax.set_xlabel('Seat Columns',fontsize=fontsize)
+    ax.set_ylabel('Rows', fontsize = fontsize)
+    ax.set_title('Passenger disembarkation animation', fontsize = fontsize +12, fontname="Times New Roman", fontweight="bold")
 
     scat = ax.scatter([], [], c=[], cmap=cmap, norm=plt.Normalize(vmin=0.5, vmax=len(State) + 0.5), s=100)
     cbar = plt.colorbar(scat, ax=ax, ticks=np.arange(1, len(State) + 1))
@@ -136,7 +140,7 @@ def generate_animation(save_animation=False):
 
     if save_animation:
         nb_fps = 45
-        ani.save(f'medias/deboarding/animations/animation_deboarding_courtesy_rule_{nb_fps}fps.gif', writer='pillow',
+        ani.save(f'medias/deboarding/animations/animation_deboarding_{DISEMBARKING_RULE_NAME}_{nb_fps}fps.gif', writer='pillow',
                  fps=nb_fps, progress_callback=lambda i, n: print(f'Saving frame {i}/{len(frames)}'))
         print("ani saved ! ")
     else:

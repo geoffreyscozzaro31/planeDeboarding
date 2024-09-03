@@ -2,8 +2,11 @@ import numpy as np
 import os
 
 import plane_deboarding
+from config_deboarding import *
 
 OUTPUT_DIR = 'medias/deboarding/'
+
+
 
 
 def save_history(simulation, n=1):
@@ -13,13 +16,13 @@ def save_history(simulation, n=1):
             print(seat_allocation.name.lower())
             for i in range(n):
                 simulation.run()
-                file_name = f'{seat_allocation.name.lower()}_{passengers_proportion}_{simulation.n_rows}_{simulation.n_seats_left}_history_{i}.txt'
+                file_name = f'{seat_allocation.name.lower()}_{DISEMBARKING_RULE_NAME}_{100*int(passengers_proportion)}pct_{simulation.n_rows}_{simulation.n_seats_left}_history_{i}.txt'
                 simulation.serialize_history(os.path.join(OUTPUT_DIR, file_name))
             break
 
 
 def measure_deboarding_time(simulation, n=10):
-    for passengers_proportion in [0.8, 1.0]:
+    for passengers_proportion in [0.8, 0.9, 1.0]:
         for seat_allocation in [plane_deboarding.SeatAllocation.RANDOM]:
             simulation.set_passengers_proportion(passengers_proportion)
             simulation.set_seat_allocation(seat_allocation)
@@ -27,7 +30,7 @@ def measure_deboarding_time(simulation, n=10):
 
             # print(seat_allocation, passengers_proportion, np.mean(simulation.deboarding_time))
 
-            file_name = f'{seat_allocation.name.lower()}_{passengers_proportion}'
+            file_name = f'{seat_allocation.name.lower()}_{DISEMBARKING_RULE_NAME}_{int(100*passengers_proportion)}pct'
             full_path = os.path.join(OUTPUT_DIR,
                                      f'{file_name}_{simulation.n_rows}_{simulation.n_seats_left}_total_time.txt')
             print("start writing file deboarding time..")
@@ -46,7 +49,7 @@ def save_deboarding_orders(simulation):
         # simulation.print_deboarding_order()
 
         full_path = os.path.join(OUTPUT_DIR,
-                                 f'{seat_allocation.name.lower()}_{simulation.n_rows}_{simulation.n_seats_left}_deboarding_order.txt')
+                                 f'{seat_allocation.name.lower()}_{DISEMBARKING_RULE_NAME}_{simulation.n_rows}_{simulation.n_seats_left}_deboarding_order.txt')
 
         with open(full_path, "w") as file:
             for i in range(simulation.dummy_rows, simulation.n_rows + simulation.dummy_rows):
