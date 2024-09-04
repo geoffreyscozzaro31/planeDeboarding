@@ -86,6 +86,8 @@ class Simulation:
 
         self.side_left = np.zeros((self.n_rows * 2 + self.dummy_rows, self.n_seats_left), dtype=int)
         self.side_right = np.zeros((self.n_rows * 2 + self.dummy_rows, self.n_seats_right), dtype=int)
+        self.exit_corridor = np.zeros(self.n_seats_left, dtype=int)
+
         self.aisle = np.zeros(self.n_rows * 2 + self.dummy_rows, dtype=int)
         self.luggage_bin = np.zeros((self.n_rows * 2 + self.dummy_rows, 2), dtype=int)
 
@@ -148,15 +150,13 @@ class Simulation:
 
             self.t += 1
         print(
-            f"Total minutes to disembark all pax: {BUFFER_TIME_GATE_CONNECTING + round(self.t * TIME_STEP_DURATION / 60, 2)}min")
+            f"Total minutes to disembark all pax: {round(self.t * TIME_STEP_DURATION / 60, 2)}min")
         # Update stats
         self.deboarding_time.append(self.t)
 
-    # Process a single animations step.
 
     def step(self):
         # Process passengers.
-        # This basically iterates over all the passengers, and performs appropriate actions based on their state.
         deboarded_pax = 0  # Number of passengers already deboarded.
         still_pax_sitted = 0
 
@@ -168,12 +168,10 @@ class Simulation:
 
             if p.next_action_t > self.t:
                 continue
+
             match p.state:
                 case State.SEATED:
-                    # If the first space in the aisle is empty, move there.
-                    r1 = np.random.randint(0, 10000)
                     r2 = np.random.randint(0, 2)
-                    #
                     if p.x == 1:
                         if self.aisle[p.y] == 0:
                             if self.side_left[p.y][2] != 0 and (r2 > 0):
@@ -215,6 +213,7 @@ class Simulation:
                         else:
                             p.next_action_t = self.t + 1
                     still_pax_sitted += 1
+
                 case State.STAND_UP_FROM_SEAT:
                     if p.has_luggage:
                         p.state = State.MOVE_WAIT
@@ -234,29 +233,61 @@ class Simulation:
                         self.aisle[p.y] = i
 
                 case State.MOVE_WAIT:
-                    if self.aisle[p.y - 1] != 0:
-                        continue
+                    if p.y == 0:
+                        if self.exit_corridor[p.x + self.n_seats_left-1] != 0:
+                            p.next_action_t = self.t + 1  # Wait until the corridor is free
+                        else:
+                            p.next_action_t = self.t + WALK_DURATION
+                            p.state = State.MOVE_FROM_ROW
+                            if p.x ==0:
+                                self.aisle[p.y] = 0
+                            else:
+                                self.exit_corridor[p.x + self.n_seats_left] = 0
+                            p.x -=1
+                            self.exit_corridor[p.x + self.n_seats_left] = i
+                    else:
+                        if self.aisle[p.y - 1] != 0:
+                            p.next_action_t = self.t + 1  # Wait until the aisle is free
+                        else:
+                            p.next_action_t = self.t + WALK_DURATION
+                            p.state = State.MOVE_FROM_ROW
+                            self.aisle[p.y] = 0
+                            p.y -= 1
+                            self.aisle[p.y] = i
 
-                    # We can go!
-                    p.next_action_t = self.t + WALK_DURATION
-                    p.state = State.MOVE_FROM_ROW
-                    self.aisle[p.y] = 0
-                    p.y -= 1
-                    self.aisle[p.y] = i
                 case State.MOVE_FROM_ROW:
                     if p.y == 0:
-                        p.state = State.DISEMBARKED
-                        self.aisle[p.y] = 0
-                        p.deboarding_time = (self.t * TIME_STEP_DURATION) // 60 + BUFFER_TIME_GATE_CONNECTING
-                        deboarded_pax += 1
+                        if p.x > -2:
+                            if self.exit_corridor[p.x + self.n_seats_left - 1] != 0:
+                                p.state = State.MOVE_WAIT
+                                p.next_action_t = self.t + 1  # Wait until the next corridor position is free
+                            else:
+                                if p.x == 0:
+                                    self.aisle[p.y] = 0
+                                else:
+                                    self.exit_corridor[p.x + self.n_seats_left] = 0
+                                p.x -= 1
+                                self.exit_corridor[p.x + self.n_seats_left] = i
+                        else:
+                            if self.t < BUFFER_TIME_GATE_CONNECTING/TIME_STEP_DURATION:
+                                p.state = State.MOVE_WAIT
+                                p.next_action_t = BUFFER_TIME_GATE_CONNECTING/TIME_STEP_DURATION  # Wait until the next corridor position is free
+
+                            else:
+                                p.state = State.DISEMBARKED
+                                self.exit_corridor[p.x + self.n_seats_left] = 0
+                                p.deboarding_time = (self.t * TIME_STEP_DURATION) // 60
+                                deboarded_pax += 1
                     else:
                         if self.aisle[p.y - 1] != 0:
                             p.state = State.MOVE_WAIT
+                            p.next_action_t = self.t + 1  # Wait until the aisle is free
                         else:
                             p.next_action_t = self.t + WALK_DURATION
                             self.aisle[p.y] = 0
                             p.y -= 1
                             self.aisle[p.y] = i
+
                 case State.DISEMBARKED:
                     deboarded_pax += 1
 
@@ -264,8 +295,6 @@ class Simulation:
                     self.print_info(f'State {p.state} is not handled.')
 
         # Check whether everyone is already deboarded
-        # print(f"% deboarded pax: {100 * round(deboarded_pax / self.n_passengers, 2)}")
-        # print(f"paxSitted: {still_pax_sitted}")
         return deboarded_pax == self.n_passengers
 
     # Save boarding history to a file.

@@ -3,8 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
-# DAY_LABEL = "max_delay_day"
-DAY_LABEL = "max_flight_day"
+DAY_LABEL = "max_delay_day"
+# DAY_LABEL = "max_flight_day"
 DATA_FOLDER = f"data/{DAY_LABEL}/"
 
 
@@ -160,15 +160,15 @@ def display_connecting_pax_distribution():
     tick_fontsize = 14
 
     ax[0].bar(bins[:-1], theoretical_histogram, width=np.diff(bins), edgecolor='black', alpha=0.7)
-    ax[0].set_title('Distribution of Theoretical Transfer Times', fontsize=title_fontsize)
-    ax[0].set_xlabel('Transfer Time (minutes)', fontsize=label_fontsize)
-    ax[0].set_ylabel('Total Number of Connecting Passengers', fontsize=label_fontsize)
+    ax[0].set_title('Distribution of theoretical transfer times', fontsize=title_fontsize)
+    ax[0].set_xlabel('Transfer time (min)', fontsize=label_fontsize)
+    ax[0].set_ylabel('Total number of \n connecting passengers', fontsize=label_fontsize)
     ax[0].tick_params(axis='both', which='major', labelsize=tick_fontsize)
 
     ax[1].bar(bins[:-1], actual_histogram, width=np.diff(bins), edgecolor='black', alpha=0.7, color='orange')
-    ax[1].set_title('Distribution of Actual Transfer Times', fontsize=title_fontsize)
-    ax[1].set_xlabel('Transfer Time (minutes)', fontsize=label_fontsize)
-    ax[1].set_ylabel('Number of Connecting Passengers', fontsize=label_fontsize)
+    ax[1].set_title('Distribution of actual transfer times', fontsize=title_fontsize)
+    ax[1].set_xlabel('Transfer time (minutes)', fontsize=label_fontsize)
+    ax[1].set_ylabel('Total number of \n connecting passengers', fontsize=label_fontsize)
     ax[1].tick_params(axis='both', which='major', labelsize=tick_fontsize)
 
     plt.tight_layout()
@@ -179,9 +179,9 @@ def display_connecting_pax_distribution():
 
 
 if __name__ == "__main__":
-    filename = DATA_FOLDER + "df_max_flights_2019_06_24.csv"
-    # filename = DATA_FOLDER + "df_max_delay_2019_06_07.csv"
-    connecting_pax_df = process_all_arrivals(filename)
+    # filename = DATA_FOLDER + "df_max_flights_2019_06_24.csv"
+    filename = DATA_FOLDER + "df_max_delay_2019_06_07.csv"
+    # connecting_pax_df = process_all_arrivals(filename)
 
     # print("Connecting passengers DataFrame:")
     # print(connecting_pax_df)

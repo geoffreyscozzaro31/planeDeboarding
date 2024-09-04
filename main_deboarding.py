@@ -16,7 +16,7 @@ def save_history(simulation, n=1):
             print(seat_allocation.name.lower())
             for i in range(n):
                 simulation.run()
-                file_name = f'{seat_allocation.name.lower()}_{DISEMBARKING_RULE_NAME}_{100*int(passengers_proportion)}pct_{simulation.n_rows}_{simulation.n_seats_left}_history_{i}.txt'
+                file_name = f'{seat_allocation.name.lower()}_{DISEMBARKING_RULE_NAME}_{100*int(passengers_proportion)}pct_{NB_ROWS}_{simulation.n_seats_left}_history_{i}.txt'
                 simulation.serialize_history(os.path.join(OUTPUT_DIR, file_name))
             break
 
@@ -32,7 +32,7 @@ def measure_deboarding_time(simulation, n=10):
 
             file_name = f'{seat_allocation.name.lower()}_{DISEMBARKING_RULE_NAME}_{int(100*passengers_proportion)}pct'
             full_path = os.path.join(OUTPUT_DIR,
-                                     f'{file_name}_{simulation.n_rows}_{simulation.n_seats_left}_total_time.txt')
+                                     f'{file_name}_{NB_ROWS}_{simulation.n_seats_left}_total_time.txt')
             print("start writing file deboarding time..")
             with open(full_path, "w") as file:
                 file.write(f'{seat_allocation.name.lower()} {passengers_proportion}\n')
@@ -49,7 +49,7 @@ def save_deboarding_orders(simulation):
         # simulation.print_deboarding_order()
 
         full_path = os.path.join(OUTPUT_DIR,
-                                 f'{seat_allocation.name.lower()}_{DISEMBARKING_RULE_NAME}_{simulation.n_rows}_{simulation.n_seats_left}_deboarding_order.txt')
+                                 f'{seat_allocation.name.lower()}_{DISEMBARKING_RULE_NAME}_{NB_ROWS}_{simulation.n_seats_left}_deboarding_order.txt')
 
         with open(full_path, "w") as file:
             for i in range(simulation.dummy_rows, simulation.n_rows + simulation.dummy_rows):
@@ -63,7 +63,7 @@ def main():
         os.makedirs(OUTPUT_DIR)
 
     simulation = plane_deboarding.Simulation(quiet_mode=True, dummy_rows=2)
-    simulation.set_custom_aircraft(n_rows=16, n_seats_left=3, n_seats_right=3)
+    simulation.set_custom_aircraft(n_rows=NB_ROWS, n_seats_left=3, n_seats_right=3)
     simulation.set_passengers_proportion(1.0)
     simulation.set_seat_allocation(plane_deboarding.SeatAllocation.RANDOM)
 

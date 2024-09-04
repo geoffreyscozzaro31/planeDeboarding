@@ -1,7 +1,7 @@
 '''
 Configuration file including parameters used to tune the simulation
 '''
-BUFFER_TIME_GATE_CONNECTING = 5  # in minutes
+BUFFER_TIME_GATE_CONNECTING = 3*60  # in seconds
 
 TIME_STEP_DURATION = 2  # in seconds
 
@@ -14,8 +14,9 @@ MAX_TIME = 24 * 60 * 60
 
 N_SEAT_LEFT = 3
 
+NB_ROWS = 20
 
-IS_COURTESY_RULE  = False
+IS_COURTESY_RULE  = True
 
 if IS_COURTESY_RULE:
     DISEMBARKING_RULE_NAME = "courtesy"
