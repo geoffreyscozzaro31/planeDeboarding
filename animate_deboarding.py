@@ -155,4 +155,4 @@ def generate_animation(save_animation=False):
 
 
 if __name__ == "__main__":
-    generate_animation(save_animation=True)
+    generate_animation(save_animation=False)

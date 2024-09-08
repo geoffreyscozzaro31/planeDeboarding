@@ -13,7 +13,6 @@ def save_history(simulation, n=1):
     for passengers_proportion in [1.0]:
         for seat_allocation in [plane_deboarding.SeatAllocation.RANDOM]:
             simulation.set_seat_allocation(seat_allocation)
-            print(seat_allocation.name.lower())
             for i in range(n):
                 simulation.run()
                 file_name = f'{seat_allocation.name.lower()}_{DISEMBARKING_RULE_NAME}_{100*int(passengers_proportion)}pct_{NB_ROWS}_{simulation.n_seats_left}_history_{i}.txt'
@@ -69,7 +68,7 @@ def main():
 
     save_deboarding_orders(simulation)
     save_history(simulation, n=1)
-    measure_deboarding_time(simulation, n=1)
+    # measure_deboarding_time(simulation, n=1)
 
 
 if __name__ == "__main__":
