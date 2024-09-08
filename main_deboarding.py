@@ -35,7 +35,7 @@ def measure_deboarding_time(simulation, n=10):
             print("start writing file deboarding time..")
             with open(full_path, "w") as file:
                 file.write(f'{seat_allocation.name.lower()} {passengers_proportion}\n')
-                file.write(' '.join(map(str, simulation.deboarding_time)))
+                file.write(' '.join(map(str, simulation.disembarkation_times)))
             print("file written !..")
 
 

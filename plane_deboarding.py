@@ -38,8 +38,8 @@ class Passenger:
         self.is_seated = True
         self.next_action_t = 0
         if self.has_luggage:
-            time_w = weibull_min.rvs(ALPHA_WEIBULL, scale=BETA_WEIBULL)/2
-            self.collecting_luggage_time =int(np.ceil(time_w/TIME_STEP_DURATION))
+            time_w = weibull_min.rvs(ALPHA_WEIBULL, scale=BETA_WEIBULL) / 2
+            self.collecting_luggage_time = int(np.ceil(time_w / TIME_STEP_DURATION))
         else:
             self.collecting_luggage_time = 0
 
@@ -72,7 +72,7 @@ class Simulation:
         self.seat_allocation = seat_allocation
 
     def reset_stats(self):
-        self.deboarding_time = []
+        self.disembarkation_times = []
 
     def print(self):
         for i in range(self.n_rows + self.dummy_rows):
@@ -130,6 +130,7 @@ class Simulation:
             has_luggage = False
             if r < PERCENTAGE_HAS_LUGGAGE:
                 has_luggage = True
+            # if seat[0]> 9 or abs(seat[1]) != 1: # to remove seat for business class
             self.passengers.append(
                 Passenger(seat_row=seat[0], seat=seat[1], slack_time=connecting_times[i], has_luggage=has_luggage))
             if (seat[1] < 0):
@@ -146,6 +147,9 @@ class Simulation:
         self.reset_stats()
         for i in range(n):
             self.run()
+        print(f"Average disembarkation time : {round(np.mean(self.disembarkation_times), 2)}min")
+        print(f"Min disembarkation time : {round(np.min(self.disembarkation_times),2)}min")
+        print(f"Max disembarkation time : {round(np.max(self.disembarkation_times),2)}min")
 
     # Run a single simulation
     def run(self):
@@ -158,10 +162,11 @@ class Simulation:
                 self.print()
 
             self.t += 1
-        print(f"Total minutes to disembark all pax: {round(self.t * TIME_STEP_DURATION / 60, 2)}min")
-        # Update stats
-        self.deboarding_time.append(self.t)
 
+        disembarkation_time = self.t * TIME_STEP_DURATION / 60
+        # print(f"Total minutes to disembark all pax: {round(disembarkation_time, 2)}min")
+        # Update stats
+        self.disembarkation_times.append(disembarkation_time)
 
     def step(self):
         # Process passengers.
@@ -341,23 +346,14 @@ class Simulation:
 
 
 if __name__ == "__main__":
-    TOTAL_TIME =0
-    NB_PAX =0
-    nb_simu = 1
-    passengers_proportion = 1
     labels = ["RANDOM", "CONNECTING_PRIORITY"]
-    for i,seat_allocation in enumerate([SeatAllocation.RANDOM, SeatAllocation.CONNECTING_PRIORITY]):
+    for i, seat_allocation in enumerate([SeatAllocation.RANDOM]):  # , SeatAllocation.CONNECTING_PRIORITY]):
         print(f"******* run simulation with {labels[i]} seat allocation strategy....")
         simulation = Simulation(quiet_mode=True, dummy_rows=2)
 
         simulation.set_custom_aircraft(n_rows=NB_ROWS, n_seats_left=NB_SEAT_LEFT, n_seats_right=3)
         simulation.set_passengers_proportion(LOAD_FACTOR)
-
-        simulation.set_passengers_proportion(passengers_proportion)
         simulation.set_seat_allocation(seat_allocation)
-        simulation.run_multiple(nb_simu)
+        simulation.run_multiple(NB_SIMULATION)
         simulation.evaluate_missing_pax()
         print(f"*******  end simulation ********************")
-
-
-
