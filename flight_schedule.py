@@ -187,10 +187,9 @@ def display_connecting_pax_distribution():
 
 
 def compute_buffer_times(df):
-    df['buffer_time_theoretical'] = (df['transfer_time_theoretical'] - df['min_walking_time']) / 60
-    df['buffer_time_actual'] = (df['transfer_time_actual'] - df['min_walking_time']) / 60
+    df['buffer_time_theoretical'] = ((df['transfer_time_theoretical'] - df['min_walking_time']) / 60).astype(int)
+    df['buffer_time_actual'] = ((df['transfer_time_actual'] - df['min_walking_time']) / 60).astype(int)
     return df
-
 
 def display_buffer_time_distribution():
     df = pd.read_csv(DATA_FOLDER + 'connecting_passengers.csv')

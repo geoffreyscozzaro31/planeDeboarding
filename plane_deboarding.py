@@ -8,6 +8,7 @@ import pandas as pd
 from scipy.stats import weibull_min
 
 import flight_schedule
+import prereserved_seats
 from config_deboarding import *
 
 
@@ -27,10 +28,10 @@ class SeatAllocation(Enum):
 
 
 class Passenger:
-    def __init__(self, seat_row, seat, slack_time, has_luggage):
+    def __init__(self, seat_row, seat, has_luggage, has_pre_reserved_seat):
         self.seat_row = seat_row
         self.seat = seat  # seat number (e.g. 1-3 for places on the right, negative numbers for places to the left)
-        self.slack_time = slack_time  # = max deboarding time (in minutes) authorised for this pax before missing its next flight, set to np.inf if not connecting pax
+        self.slack_time = -1  # = max deboarding time (in minutes) authorised for this pax before missing its next flight, set to np.inf if not connecting pax
         self.deboarding_time = -1
         self.has_luggage = has_luggage
         self.state = State.SEATED
@@ -38,6 +39,7 @@ class Passenger:
         self.y = seat_row
         self.is_seated = True
         self.next_action_t = 0
+        self.has_pre_reserved_seat = has_pre_reserved_seat
         if self.has_luggage:
             time_w = weibull_min.rvs(ALPHA_WEIBULL, scale=BETA_WEIBULL) / 2
             self.collecting_luggage_time = int(np.ceil(time_w / TIME_STEP_DURATION))
@@ -48,18 +50,57 @@ class Passenger:
 class Simulation:
     def __init__(self, dummy_rows=2, quiet_mode=True):
         self.dummy_rows = dummy_rows  # Add fictive rows  to model empty space at the top of the aircraft
+        self.n_rows = -1
+        self.n_seats_left = -1
+        self.n_seats_right = -1
+
         self.passengers: List[Passenger] = []
         self.t = 0
         self.history = defaultdict(list)
         self.history_luggage = []
-        self.seat_allocation_strategy = SeatAllocation.RANDOM
+        self.seat_allocation_strategy = None
         self.quiet_mode = quiet_mode
         self.reset_stats()
         self.t_max = T_MAX_SIMULATION
         self.disembarked_pax = 0
-        self.connecting_pax_list = {}
+        self.connecting_time_pax_list = []
+        self.passengers_seat_allocation_list = []
+        self.probability_matrix_prereserved_seats = []
+        self.passenger_has_luggage_list = []
+        self.passenger_has_pre_reserved_seat_list = []
+        self.nb_prereserved_seats = 0
 
+    def __copy__(self):
+        new_simulation = Simulation(self.dummy_rows, self.quiet_mode)
+        new_simulation.n_rows = self.n_rows
+        new_simulation.n_seats_left = self.n_seats_left
+        new_simulation.n_seats_right = self.n_seats_right
+        new_simulation.n_passengers = self.n_passengers
+        new_simulation.passengers = [passenger for passenger in self.passengers]
+        new_simulation.t_max = self.t_max
+        new_simulation.connecting_time_pax_list = self.connecting_time_pax_list[:]
+        new_simulation.passengers_seat_allocation_list = self.passengers_seat_allocation_list[:]
+        new_simulation.probability_matrix_prereserved_seats = self.probability_matrix_prereserved_seats[:]
+        new_simulation.passenger_has_luggage_list = self.passenger_has_luggage_list[:]
+        new_simulation.passenger_has_pre_reserved_seat_list = self.passenger_has_pre_reserved_seat_list[:]
+        new_simulation.nb_prereserved_seats = self.nb_prereserved_seats
+        new_simulation.reset()
+        return new_simulation
     def set_connecting_time_pax(self, df_connecting_flight, nb_pax_carried):
+        """
+        Sets the connecting time for passengers based on the provided flight data.
+
+        Parameters:
+        df_connecting_flight (pd.DataFrame): DataFrame containing information about connecting flights.
+        nb_pax_carried (int): Total number of passengers carried on the flight.
+
+        The function performs the following steps:
+        1. Extracts the number of connecting passengers and their buffer times from the DataFrame.
+        2. Repeats the buffer times according to the number of connecting passengers.
+        3. Calculates the number of remaining passengers and assigns them an infinite buffer time.
+        4. Shuffles the list of connecting times to randomize the order.
+
+        """
         nb_pax_list = df_connecting_flight['nb_connecting_pax'].values
         buffer_time_list = df_connecting_flight['buffer_time_actual'].values
 
@@ -68,7 +109,7 @@ class Simulation:
         remaining_pax = nb_pax_carried - len(connecting_pax_list)
         connecting_pax_list = np.concatenate((connecting_pax_list, np.full(remaining_pax, np.inf)))
         np.random.shuffle(connecting_pax_list)
-        self.connecting_pax_list = connecting_pax_list
+        self.connecting_time_pax_list = connecting_pax_list
         print(f"nb_connecting pax:{nb_connecting_pax},  nb_other_pax:{remaining_pax}")
 
     def set_custom_aircraft(self, n_rows, n_seats_left=2, n_seats_right=2):
@@ -112,53 +153,98 @@ class Simulation:
         self.side_left = np.zeros((self.n_rows * 2 + self.dummy_rows, self.n_seats_left), dtype=int)
         self.side_right = np.zeros((self.n_rows * 2 + self.dummy_rows, self.n_seats_right), dtype=int)
         self.exit_corridor = np.zeros(self.n_seats_left, dtype=int)
-
         self.aisle = np.zeros(self.n_rows * 2 + self.dummy_rows, dtype=int)
         self.luggage_bin = np.zeros((self.n_rows * 2 + self.dummy_rows, 2), dtype=int)
-
         self.deboarding_order_left = np.zeros((self.n_rows * 2 + self.dummy_rows, self.n_seats_left), dtype=int)
         self.deboarding_order_right = np.zeros((self.n_rows * 2 + self.dummy_rows, self.n_seats_right), dtype=int)
+        self.fill_aircraft()
+        self.reset_stats()
 
-        self.randomize_passengers()
 
-    def randomize_passengers(self):
-        seat_cols = set(range(-self.n_seats_left, self.n_seats_right + 1)) - {0}  # Possible seats
-        seat_rows = np.array(range(self.dummy_rows, self.n_rows + self.dummy_rows)) * 2  # Possible rows
 
-        # 1. Get all seats on the plane
-        #    Every seat is described by a 3-element list: [row, column, boarding zone]
-        #    Initially we zet all zones to 0, and we set the actual values later
-        # 2. Randomly select seat indices for every passenger
-        # 3. Create seat's list (i-th seat corresponds to the )
-        all_seats = list(list(x) for x in itertools.product(seat_rows, seat_cols))
-        all_seats.sort(key=lambda x: 100 * x[0] + abs(x[1]))
-        selected_seats_ind = np.arange(self.n_passengers)
-        selected_seats = [all_seats[seat_ind] for seat_ind in selected_seats_ind]
 
-        # connecting_times = np.random.randint(0,30,len(selected_seats))
-        connecting_times = np.arange(0, len(selected_seats))
-        np.random.shuffle(connecting_times)
-        if self.seat_allocation_strategy == SeatAllocation.CONNECTING_PRIORITY:
-            connecting_times.sort()  # todo: implementer strategie allocation pax priority, add selected seat unassignable and first rows for business for instance
-
-        # Add a dummy element so that passengers are 1-indexed. We do this so that 0 in self.aisle,  self.side_left etc. represents "no passenger"
-        self.passengers = [None]
-        for i, seat in enumerate(selected_seats):
-            r = np.random.randint(0, 100)
-            has_luggage = False
-            if r < PERCENTAGE_HAS_LUGGAGE:
-                has_luggage = True
-            # if seat[0]> 9 or abs(seat[1]) != 1: # to remove seat for business class
-            self.passengers.append(
-                Passenger(seat_row=seat[0], seat=seat[1], slack_time=connecting_times[i], has_luggage=has_luggage))
-            if (seat[1] < 0):
-                self.side_left[seat[0]][NB_SEAT_LEFT + seat[1]] = i + 1
+    def fill_aircraft(self):
+        for passenger in self.passengers[1:]:
+            if (passenger.seat < 0):
+                self.side_left[passenger.seat_row][NB_SEAT_LEFT + passenger.seat] = i + 1
             else:
-                self.side_right[seat[0]][seat[1] - 1] = i + 1
+                self.side_right[passenger.seat_row][passenger.seat - 1] = i + 1
 
-    def select_pre_reserved_seats(self, all_seats):
-        selected_seats_ind = np.arange(self.n_passengers)
-        selected_seats = [all_seats[seat_ind] for seat_ind in selected_seats_ind]
+    def set_passengers_having_luggage(self):
+        stochastic_percentage_has_luggage = np.random.uniform(MIN_PERCENTAGE_HAS_LUGGAGE, MAX_PERCENTAGE_HAS_LUGGAGE)
+        self.passenger_has_luggage_list = np.random.rand(self.n_passengers) < stochastic_percentage_has_luggage / 100
+
+    def set_probability_matrix_prereserved_seats(self):
+        self.probability_matrix_prereserved_seats = prereserved_seats.generate_probability_matrix(nb_rows, NB_SEAT_LEFT + NB_SEAT_RIGHT)
+
+    def set_passengers_with_prereserved_seats(self):
+        stochastic_percentage_prereserved_seats = np.random.uniform(MIN_PERCENTAGE_PRERESERVED_SEATS,
+                                                                    MAX_PERCENTAGE_PRERESERVED_SEATS)
+        self.passenger_has_pre_reserved_seat_list = np.random.rand(
+            self.n_passengers) < stochastic_percentage_prereserved_seats / 100
+        self.nb_prereserved_seats = np.sum(self.passenger_has_pre_reserved_seat_list)
+
+    def set_passenger_seat_allocation(self):
+        prereserved_seats_pax_allocation, other_seats = prereserved_seats.assign_prereserved_seats(
+            self.nb_prereserved_seats,
+            self.n_passengers,
+            self.probability_matrix_prereserved_seats
+        )
+
+        # Assign prereserved seats to passengers who have prereserved seats
+        prereserved_index = 0
+        other_index = 0
+        self.passengers_seat_allocation_list = []
+        for i in range(self.n_passengers):
+            if self.passenger_has_pre_reserved_seat_list[i]:
+                self.passengers_seat_allocation_list.append(prereserved_seats_pax_allocation[prereserved_index])
+                prereserved_index += 1
+            else:
+                self.passengers_seat_allocation_list.append(other_seats[other_index])
+                other_index += 1
+
+    def create_passengers(self):
+        for i, seat in enumerate(self.passengers_seat_allocation_list):
+            seat_row = (self.dummy_rows + seat[0]) * 2
+            if (seat[1] < 3):
+                seat_column = seat[1] - NB_SEAT_LEFT
+            else:
+                seat_column = seat[1] - NB_SEAT_LEFT + 1
+            self.passengers.append(Passenger(seat_row=seat_row, seat=seat_column,
+                                             has_luggage=self.passenger_has_luggage_list[i],
+                                             has_pre_reserved_seat=self.passenger_has_pre_reserved_seat_list[i]))
+
+        self.sort_passengers()
+        self.assign_passenger_connecting_times()
+        self.passengers = [None] + self.passengers
+
+    def sort_passengers(self):
+        # self.passengers.sort(key=lambda p: (p.seat_row, abs(p.seat)))
+        combined_list = list(
+            zip(self.passengers, self.passenger_has_pre_reserved_seat_list, self.connecting_time_pax_list))
+        combined_list.sort(key=lambda p: (p[0].seat_row, abs(p[0].seat)))
+        self.passengers, self.passenger_has_pre_reserved_seat_list, self.connecting_time_pax_list = zip(*combined_list)
+        self.passengers = list(self.passengers)
+        self.passenger_has_pre_reserved_seat_list = list(self.passenger_has_pre_reserved_seat_list)
+        self.connecting_time_pax_list = list(self.connecting_time_pax_list)
+
+    def assign_passenger_connecting_times(self):
+        # if self.seat_allocation_strategy == SeatAllocation.RANDOM:
+        for i in range(len(self.passengers)):
+            self.passengers[i].slack_time = self.connecting_time_pax_list[i]
+        if self.seat_allocation_strategy == "CONNECTING_PRIORITY":
+            non_prereserved_passengers = [p for p in self.passengers if not p.has_pre_reserved_seat]
+            if IS_COURTESY_RULE:
+                non_prereserved_passengers.sort(key=lambda p: (p.seat_row, abs(p.seat)))
+            else:
+                non_prereserved_passengers.sort(key=lambda p: (abs(p.seat), p.seat_row))
+                # non_prereserved_passengers.sort(key=lambda p: (p.seat_row, abs(p.seat)))
+
+
+            for i, p in enumerate(non_prereserved_passengers):
+                p.slack_time = self.connecting_time_pax_list[i]
+
+    # todo: handle aisle priority sorting
 
     def print_info(self, *args):
         if not self.quiet_mode:
@@ -166,12 +252,22 @@ class Simulation:
 
     # Run multiple simulations
     def run_multiple(self, n):
+        missing_pax_list = []
         self.reset_stats()
         for i in range(n):
+            print(f'*** Simulation {i} ***')
             self.run()
+            missing_pax_list.append( self.evaluate_missing_pax())
+
+        missing_pax_list = np.array(missing_pax_list)
         print(f"Average disembarkation time : {round(np.mean(self.disembarkation_times), 2)}min")
         print(f"Min disembarkation time : {round(np.min(self.disembarkation_times), 2)}min")
         print(f"Max disembarkation time : {round(np.max(self.disembarkation_times), 2)}min")
+
+        print(f"Total passengers: {self.n_passengers}")
+        print(f"List missed pax: {missing_pax_list}")
+        print(f"Average missed pax: {np.mean(missing_pax_list)}")
+        print(f"Average Percentage missed pax: {round(100 * np.mean(missing_pax_list) / self.n_passengers, 2)}%")
 
     # Run a single simulation
     def run(self):
@@ -352,7 +448,6 @@ class Simulation:
         "iterate over pax and test if deboarding time > slack time"
         nb_missed_pax = 0
         nb_deboarded_pax = 0
-        # print(self.passengers)
         for i, passenger in enumerate(self.passengers):
             if i == 0: continue
 
@@ -362,33 +457,65 @@ class Simulation:
                 if (passenger.deboarding_time > passenger.slack_time):
                     nb_missed_pax += 1
                 nb_deboarded_pax += 1
-        print(f"Total passengers: {self.n_passengers}")
-        print(f"Total missed pax: {nb_missed_pax}")
-        print(f"Percentage missed pax: {round(100 * nb_missed_pax / nb_deboarded_pax, 2)}%")
+
+        return nb_missed_pax
 
 
 if __name__ == "__main__":
-    labels = ["RANDOM", "CONNECTING_PRIORITY"]
-    for i, seat_allocation in enumerate([SeatAllocation.RANDOM]):  # , SeatAllocation.CONNECTING_PRIORITY]):
-        print(f"******* run simulation with {labels[i]} seat allocation strategy....")
-        simulation = Simulation(quiet_mode=True, dummy_rows=2)
-        flight_id = 0
-        df_arrival_flight = pd.read_csv("data/max_flight_day/df_arrival_flights.csv")  # todo: change in function of day
 
-        nb_pax_carried = df_arrival_flight[df_arrival_flight["arrival_flight_id"] == flight_id]["actual_passenger_count"].values[0]
-        nb_rows = int(np.ceil(LOAD_FACTOR * nb_pax_carried / 6))
+    flight_id = 0
+    df_arrival_flight = pd.read_csv("data/max_flight_day/df_arrival_flights.csv")  # todo: change in function of day
 
-        simulation.set_custom_aircraft(n_rows=nb_rows, n_seats_left=NB_SEAT_LEFT, n_seats_right=NB_SEAT_LEFT)
-        # simulation.set_default_passengers_proportion(LOAD_FACTOR)
-        simulation.set_number_passengers(nb_pax_carried)
+    nb_pax_carried = \
+        df_arrival_flight[df_arrival_flight["arrival_flight_id"] == flight_id]["actual_passenger_count"].values[0]
 
-        ##connecting pax
-        df_connections = pd.read_csv("data/max_flight_day/connecting_passengers.csv")  # todo: change in function of day
-        df_connections = flight_schedule.compute_buffer_times(df_connections)
-        crop_df = df_connections[df_connections["arrival_flight_id"] == flight_id]
-        simulation.set_connecting_time_pax(crop_df, nb_pax_carried)
+    stochastic_load_factor = np.random.uniform(MIN_LOAD_FACTOR, MAX_LOAD_FACTOR)
+    nb_rows = int(np.ceil(nb_pax_carried / (6 * stochastic_load_factor)))
 
-        simulation.set_seat_allocation_strategy(seat_allocation)
-        # simulation.run_multiple(NB_SIMULATION)
-        # simulation.evaluate_missing_pax()
-        print(f"*******  end simulation ********************")
+    print("nb_rows:", nb_rows, "nb_passengers_carried", nb_pax_carried)
+
+    df_connections = pd.read_csv("data/max_flight_day/connecting_passengers.csv")  # todo: change in function of day
+    df_connections = flight_schedule.compute_buffer_times(df_connections)
+    crop_df = df_connections[df_connections["arrival_flight_id"] == flight_id]
+
+    simulation = Simulation(quiet_mode=True, dummy_rows=2)
+    simulation.set_custom_aircraft(n_rows=nb_rows, n_seats_left=NB_SEAT_LEFT, n_seats_right=NB_SEAT_RIGHT)
+    simulation.set_number_passengers(nb_pax_carried)
+
+    simulation.set_connecting_time_pax(crop_df, nb_pax_carried)
+    simulation.set_passengers_with_prereserved_seats()
+    simulation.set_passengers_having_luggage()
+    simulation.set_probability_matrix_prereserved_seats()
+    simulation.set_passengers_with_prereserved_seats()
+    simulation.set_passenger_seat_allocation()
+    simulation.create_passengers()
+    simulation.set_seat_allocation_strategy("RANDOM")
+    simulation.set_passenger_seat_allocation()
+    simulations =[simulation]
+    for i, seat_allocation in enumerate(["CONNECTING_PRIORITY"]):
+        # new_simulation = simulation.__copy__()
+        # new_simulation.set_seat_allocation_strategy(seat_allocation)
+        # print(seat_allocation)
+        # new_simulation.set_passenger_seat_allocation()
+        # simulations.append(new_simulation)
+        simulation2 = Simulation(quiet_mode=True, dummy_rows=2)
+        simulation2.set_custom_aircraft(n_rows=nb_rows, n_seats_left=NB_SEAT_LEFT, n_seats_right=NB_SEAT_RIGHT)
+        simulation2.set_number_passengers(nb_pax_carried)
+
+        simulation2.set_connecting_time_pax(crop_df, nb_pax_carried)
+        simulation2.set_passengers_with_prereserved_seats()
+        simulation2.set_passengers_having_luggage()
+        simulation2.set_probability_matrix_prereserved_seats()
+        simulation2.set_passengers_with_prereserved_seats()
+        simulation2.set_passenger_seat_allocation()
+        simulation2.create_passengers()
+        simulation2.set_seat_allocation_strategy("CONNECTING_PRIORITY")
+        simulation2.set_passenger_seat_allocation()
+        simulations.append(simulation2)
+    labels = ["RANDOM","CONNECTING_PRIORITY"]
+    for i,simu in enumerate(simulations):
+        print(f"******* run simulation pool with {labels[i]} seat allocation strategy....")
+        simu.reset()
+        simu.run_multiple(NB_SIMULATION)
+
+        #todo: adapt code for launching, in same configuration the three types of simulation (random, connecting_priority aisle, connecting priority courtesy)
