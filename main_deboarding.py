@@ -12,7 +12,7 @@ OUTPUT_DIR = 'medias/deboarding/'
 def save_history(simulation, n=1):
     for passengers_proportion in [1.0]:
         for seat_allocation in [plane_deboarding.SeatAllocation.RANDOM]:
-            simulation.set_seat_allocation(seat_allocation)
+            simulation.set_seat_allocation_strategy(seat_allocation)
             for i in range(n):
                 simulation.run()
                 file_name = f'{seat_allocation.name.lower()}_{DISEMBARKING_RULE_NAME}_{100*int(passengers_proportion)}pct_{NB_ROWS}_{simulation.n_seats_left}_history_{i}.txt'
@@ -24,7 +24,7 @@ def measure_deboarding_time(simulation, n=10):
     for passengers_proportion in [0.8, 0.9, 1.0]:
         for seat_allocation in [plane_deboarding.SeatAllocation.RANDOM]:
             simulation.set_passengers_proportion(passengers_proportion)
-            simulation.set_seat_allocation(seat_allocation)
+            simulation.set_seat_allocation_strategy(seat_allocation)
             simulation.run_multiple(n)
 
             # print(seat_allocation, passengers_proportion, np.mean(simulation.deboarding_time))
@@ -41,7 +41,7 @@ def measure_deboarding_time(simulation, n=10):
 
 def save_deboarding_orders(simulation):
     for seat_allocation in [plane_deboarding.SeatAllocation.RANDOM]:
-        simulation.set_seat_allocation(seat_allocation)
+        simulation.set_seat_allocation_strategy(seat_allocation)
         simulation.reset()
 
         # print(seat_allocation)
@@ -64,7 +64,7 @@ def main():
     simulation = plane_deboarding.Simulation(quiet_mode=True, dummy_rows=2)
     simulation.set_custom_aircraft(n_rows=NB_ROWS, n_seats_left=3, n_seats_right=3)
     simulation.set_passengers_proportion(1.0)
-    simulation.set_seat_allocation(plane_deboarding.SeatAllocation.RANDOM)
+    simulation.set_seat_allocation_strategy(plane_deboarding.SeatAllocation.RANDOM)
 
     save_deboarding_orders(simulation)
     save_history(simulation, n=1)
