@@ -187,8 +187,10 @@ def display_connecting_pax_distribution():
 
 
 def compute_buffer_times(df):
-    df['buffer_time_theoretical'] = ((df['transfer_time_theoretical'] - df['min_walking_time']) / 60).astype(int)
-    df['buffer_time_actual'] = ((df['transfer_time_actual'] - df['min_walking_time']) / 60).astype(int)
+    df['buffer_time_theoretical_seconds'] = df['transfer_time_theoretical'] - df['min_walking_time']
+    df['buffer_time_actual_seconds'] = df['transfer_time_actual'] - df['min_walking_time']
+    df['buffer_time_theoretical_minutes'] = ((df['transfer_time_theoretical'] - df['min_walking_time']) / 60).astype(int)
+    df['buffer_time_actual_minutes'] = ((df['transfer_time_actual'] - df['min_walking_time']) / 60).astype(int)
     return df
 
 def display_buffer_time_distribution():
@@ -196,13 +198,13 @@ def display_buffer_time_distribution():
 
     df = compute_buffer_times(df)
 
-    min_buffer_time = min(df['buffer_time_theoretical'].min(), df['buffer_time_actual'].min())
-    max_buffer_time = max(df['buffer_time_theoretical'].max(), df['buffer_time_actual'].max())
+    min_buffer_time = min(df['buffer_time_theoretical_minutes'].min(), df['buffer_time_actual_minutes'].min())
+    max_buffer_time = max(df['buffer_time_theoretical_minutes'].max(), df['buffer_time_actual_minutes'].max())
     bins = np.arange(np.floor(min_buffer_time), np.ceil(max_buffer_time) + 10, 10)
 
-    theoretical_histogram, _ = np.histogram(df['buffer_time_theoretical'], bins=bins,
+    theoretical_histogram, _ = np.histogram(df['buffer_time_theoretical_minutes'], bins=bins,
                                             weights=df['nb_connecting_pax'])
-    actual_histogram, _ = np.histogram(df['buffer_time_actual'], bins=bins, weights=df['nb_connecting_pax'])
+    actual_histogram, _ = np.histogram(df['buffer_time_actual_minutes'], bins=bins, weights=df['nb_connecting_pax'])
 
     fig, ax = plt.subplots(2, 1, figsize=(10, 8))
 
@@ -223,8 +225,8 @@ def display_buffer_time_distribution():
     ax[1].tick_params(axis='both', which='major', labelsize=tick_fontsize)
 
     plt.tight_layout()
-    plt.savefig(f"medias/connecting_passengers_distribution/{DAY_LABEL}/buffer_time_distribution_{DAY_LABEL}.png")
-    # plt.show()
+    # plt.savefig(f"medias/connecting_passengers_distribution/{DAY_LABEL}/buffer_time_distribution_{DAY_LABEL}.png")
+    plt.show()
 
 
 if __name__ == "__main__":

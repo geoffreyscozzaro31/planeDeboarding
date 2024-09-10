@@ -4,12 +4,12 @@ Configuration file including parameters used to tune the simulation
 
 import numpy as np
 
-BUFFER_TIME_GATE_CONNECTING = 0 * 60  # in seconds
+BUFFER_TIME_GATE_CONNECTING = 3 * 60  # in seconds
 
 TIME_STEP_DURATION = 0.5  # in seconds
 
 WALK_DURATION = 1  # in time steps
-STAND_UP_DURATION = 1  # in time steps
+STAND_UP_DURATION = 1 # in time steps
 MOVE_SEAT_DURATION = 1
 
 ###luggage collection param
