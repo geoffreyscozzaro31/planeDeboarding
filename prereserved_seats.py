@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import random
 
+
 def generate_probability_matrix(nb_rows, nb_columns):
     grid = np.zeros((nb_rows, nb_columns))
 
@@ -31,32 +32,46 @@ def assign_prereserved_seats(nb_passengers_prereserved, total_passengers, probab
     flat_probs = probability_matrix.flatten()
     flat_indices = list(range(len(flat_probs)))
 
-    # Normalize probabilities
+    # Normalize probabilities for pre-reserved seats
     total_prob = sum(flat_probs)
     normalized_probs = [p / total_prob for p in flat_probs]
 
-    # Randomly assign seats based on the probability matrix
-    assigned_indices_prereserved = random.choices(flat_indices, weights=normalized_probs, k=nb_passengers_prereserved)
+    # Randomly assign seats for pre-reserved passengers
+    assigned_indices_prereserved = []
+    while len(assigned_indices_prereserved) < nb_passengers_prereserved:
+        index = random.choices(flat_indices, weights=normalized_probs, k=1)[0]
+        if index not in assigned_indices_prereserved:
+            assigned_indices_prereserved.append(index)
+            flat_probs[index] = -1  # Mark this seat as taken
 
     for index in assigned_indices_prereserved:
         row = index // nb_columns
         col = index % nb_columns
         prereserved_seats.append((row, col))
-        flat_probs[index] = 0  # Mark this seat as taken
 
-    # Normalize probabilities again for remaining seats
-    total_prob = sum(flat_probs)
-    normalized_probs = [p / total_prob for p in flat_probs]
+    # Collect remaining available seats
+    available_indices = [i for i in flat_indices if flat_probs[i] > -1]
 
+    # Uniformly assign seats to remaining passengers from available seats
     remaining_passengers = total_passengers - nb_passengers_prereserved
-    assigned_indices_remaining = random.choices(flat_indices, weights=normalized_probs, k=remaining_passengers)
+    assigned_indices_remaining = random.sample(available_indices, remaining_passengers)
 
     for index in assigned_indices_remaining:
         row = index // nb_columns
         col = index % nb_columns
         remaining_seats.append((row, col))
 
+    # Ensure no duplicates
+    if len(set(prereserved_seats + remaining_seats)) != len(prereserved_seats) + len(remaining_seats):
+        raise ValueError("Duplicate seats found in the assignment")
+
     return prereserved_seats, remaining_seats
+
+
+def check_for_duplicates(seats):
+    """Check for duplicate seats."""
+    return len(seats) != len(set(seats))
+
 
 def display_prereserved_seat_probability():
     nb_rows, nb_cols = 20, 7
@@ -113,5 +128,5 @@ if __name__ == '__main__':
     nb_pax_prereserved = 40
     nb_total_pax = 50
 
-    res = assign_prereserved_seats(nb_pax_prereserved,nb_total_pax,probability_matrix=grid)
+    res = assign_prereserved_seats(nb_pax_prereserved, nb_total_pax, probability_matrix=grid)
     print(res)

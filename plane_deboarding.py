@@ -223,14 +223,13 @@ class Simulation:
         self.connecting_time_pax_list = list(self.connecting_time_pax_list)
 
     def assign_passenger_connecting_times(self):
-            for i in range(len(self.passengers)-1):
-                self.passengers[i+1].slack_time = self.connecting_time_pax_list[i]
-            if self.seat_allocation_strategy == "CONNECTING_PRIORITY":
-                non_prereserved_passengers_deboarding_time = [p.slack_time for p in self.passengers[1:] if not p.has_pre_reserved_seat]
-                non_prereserved_passengers_deboarding_time.sort()
-                for i in range(1,len(self.passengers)):
-                    if not self.passengers[i].has_pre_reserved_seat:
-                        self.passengers[i].slack_time = non_prereserved_passengers_deboarding_time.pop(0)
+        for i in range(len(self.passengers) - 1):
+            self.passengers[i + 1].slack_time = self.connecting_time_pax_list[i]
+        if self.seat_allocation_strategy != SeatAllocation.RANDOM:
+            non_pre_reserved_passengers = [p for p in self.passengers[1:] if not p.has_pre_reserved_seat]
+
+            if self.deboarding_strategy == DeboardingStrategy.COURTESY_RULE:
+                non_pre_reserved_passengers.sort(key=lambda p: (p.seat_row, abs(p.seat)))
 
 
     def print_info(self, *args):

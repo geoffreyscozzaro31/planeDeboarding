@@ -33,13 +33,13 @@ MAX_LOAD_FACTOR = 0.865 + 0.05  # add stochasticity to the load factor
 MIN_PERCENTAGE_PRERESERVED_SEATS = 40 - 5
 MAX_PERCENTAGE_PRERESERVED_SEATS = 40 + 5  # add stochasticity to the pre-reserved seats
 
-IS_COURTESY_RULE = True
+# IS_COURTESY_RULE = True
 
 ### Simulation parameters
 T_MAX_SIMULATION = 10000  # in time steps
 NB_SIMULATION = 1
 
-if IS_COURTESY_RULE:
-    DISEMBARKING_RULE_NAME = "courtesy"
-else:
-    DISEMBARKING_RULE_NAME = "aisle_priority"
+# if IS_COURTESY_RULE:
+#     DISEMBARKING_RULE_NAME = "courtesy"
+# else:
+#     DISEMBARKING_RULE_NAME = "aisle_priority"
