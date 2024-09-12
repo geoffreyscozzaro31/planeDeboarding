@@ -11,7 +11,7 @@ import flight_schedule
 import prereserved_seats
 from config_deboarding import *
 
-DAY_LABEL = "max_delay_day"
+DAY_LABEL = "max_flight_day"
 
 
 # DAY_LABEL = "max_flight_day"
@@ -274,7 +274,7 @@ class Simulation:
         combined_list = list(
             zip(self.passengers[1:], self.passenger_has_pre_reserved_seat_list, self.scheduled_connecting_time_pax_list,
                 self.actual_connecting_time_pax_list))
-        combined_list.sort(key=lambda p: (p[0].seat_row, abs(p[0].seat)))  # sort for 10_simulations_40_pct_prereserved_3h_connecting_time iteration
+        combined_list.sort(key=lambda p: (p[0].seat_row, abs(p[0].seat)))
         self.passengers, self.passenger_has_pre_reserved_seat_list, self.scheduled_connecting_time_pax_list, self.actual_connecting_time_pax_list = zip(
             *combined_list)
         self.passengers = [None] + list(self.passengers)
