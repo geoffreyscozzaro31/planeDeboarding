@@ -2,9 +2,10 @@ import os
 
 import matplotlib.pyplot as plt
 import pandas as pd
+from config_deboarding import GATE_CLOSE_TIME
 
-# DAY_LABEL = "max_delay_day"
-DAY_LABEL = "max_flight_day"
+DAY_LABEL = "max_delay_day"
+# DAY_LABEL = "max_flight_day"
 
 RESULT_FOLDER = f"results/{DAY_LABEL}/10_simulations_20_pct_prereserved_3h_connecting_time/"
 
@@ -48,7 +49,7 @@ def display_missed_pax_strategies(savefig=False):
     ax.grid(True, linestyle='--', alpha=0.6)
 
     if savefig:
-        plt.savefig(f"medias/boxplot/{DAY_LABEL}_missed_pax_.png", bbox_inches='tight')
+        plt.savefig(f"medias/boxplot/{DAY_LABEL}_missed_pax_{int(GATE_CLOSE_TIME/60)}min_gate_closure.png", bbox_inches='tight')
     else:
         plt.show()
 
@@ -83,7 +84,7 @@ def display_boxplot_deboarding_time(savefig=False):
     ax.grid(True, linestyle='--', alpha=0.6)
 
     if savefig:
-        plt.savefig(f"medias/boxplot/{DAY_LABEL}_deboarding_time.png", bbox_inches='tight')
+        plt.savefig(f"medias/boxplot/{DAY_LABEL}_deboarding_time_{int(GATE_CLOSE_TIME/60)}min_gate_closure.png", bbox_inches='tight')
     else:
         plt.show()
 
@@ -128,7 +129,7 @@ def display_deboarding_time_bar(savefig=False):
 
     # Save or display the plot
     if savefig:
-        plt.savefig(f"medias/barplot/{DAY_LABEL}_deboarding_time.png", bbox_inches='tight')
+        plt.savefig(f"medias/barplot/{DAY_LABEL}_deboarding_time_{int(GATE_CLOSE_TIME/60)}min_gate_closure.png", bbox_inches='tight')
     else:
         plt.show()
 

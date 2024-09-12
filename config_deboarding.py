@@ -1,5 +1,5 @@
 '''
-Configuration file including parameters used to tune the 10_simulations_40_pct_prereserved_3h_connecting_time
+Configuration file including parameters used to tune the 10_simulations_40_pct_prereserved_3h_connecting_time_without_gate_closure_time
 '''
 
 import numpy as np
@@ -43,3 +43,6 @@ NB_SIMULATION = 10
 #     DISEMBARKING_RULE_NAME = "courtesy"
 # else:
 #     DISEMBARKING_RULE_NAME = "aisle_priority"
+
+
+GATE_CLOSE_TIME = 20 * 60  # in seconds
