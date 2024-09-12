@@ -25,9 +25,9 @@ def measure_deboarding_time(simulation, n=10):
         for seat_allocation in [plane_deboarding.SeatAllocation.RANDOM]:
             simulation.set_passengers_proportion(passengers_proportion)
             simulation.set_seat_allocation_strategy(seat_allocation)
-            simulation.run_multiple(n)
+            simulation.run_simulation(n)
 
-            # print(seat_allocation, passengers_proportion, np.mean(simulation.deboarding_time))
+            # print(seat_allocation, passengers_proportion, np.mean(10_simulations_40_pct_prereserved_3h_connecting_time.deboarding_time))
 
             file_name = f'{seat_allocation.name.lower()}_{DISEMBARKING_RULE_NAME}_{int(100*passengers_proportion)}pct'
             full_path = os.path.join(OUTPUT_DIR,
@@ -45,7 +45,7 @@ def save_deboarding_orders(simulation):
         simulation.reset()
 
         # print(seat_allocation)
-        # simulation.print_deboarding_order()
+        # 10_simulations_40_pct_prereserved_3h_connecting_time.print_deboarding_order()
 
         full_path = os.path.join(OUTPUT_DIR,
                                  f'{seat_allocation.name.lower()}_{DISEMBARKING_RULE_NAME}_{NB_ROWS}_{simulation.n_seats_left}_deboarding_order.txt')
@@ -68,7 +68,7 @@ def main():
 
     save_deboarding_orders(simulation)
     save_history(simulation, n=1)
-    # measure_deboarding_time(simulation, n=1)
+    # measure_deboarding_time(10_simulations_40_pct_prereserved_3h_connecting_time, n=1)
 
 
 if __name__ == "__main__":

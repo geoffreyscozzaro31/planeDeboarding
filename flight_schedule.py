@@ -7,8 +7,9 @@ MAX_PASSENGER_COUNT_VALUE = 200  # to not consider large flights
 MIN_CONNECTING_PAX_RATIO = 0.3
 MAX_CONNECTING_PAX_RATIO = 0.5
 
-MINIMUM_TRANSFER_TIME = pd.Timedelta(minutes=45)
-MAXIMUM_TRANSFER_TIME = pd.Timedelta(hours=4)
+MAX_HOUR_CONNECTING_TIME = 3
+MINIMUM_CONNECTING_TIME = pd.Timedelta(minutes=45)
+MAXIMUM_CONNECTING_TIME = pd.Timedelta(hours=MAX_HOUR_CONNECTING_TIME)
 
 MINIMUM_WALKING_TIME = 10  # in minutes
 MAXIMUM_WALKING_TIME = 95  # in minutes
@@ -90,9 +91,8 @@ def process_all_arrivals(filename):
         id_arrival_flight, nb_pax = arrival_row.name, arrival_row['actual_passenger_count']
         new_entry = pd.DataFrame({"arrival_flight_id": [id_arrival_flight], "actual_passenger_count": [nb_pax]})
         df_arrival_flights = pd.concat([df_arrival_flights, new_entry], ignore_index=True)
-
-    df_arrival_flights.to_csv(DATA_FOLDER + "df_arrival_flights.csv", index=False)
-    connecting_pax_df.to_csv(DATA_FOLDER + "connecting_passengers.csv", index=False)
+    df_arrival_flights.to_csv(DATA_FOLDER + f"df_arrival_flights_{MAX_HOUR_CONNECTING_TIME}h_max_connecting_time.csv", index=False)
+    connecting_pax_df.to_csv(DATA_FOLDER + f"connecting_passengers_{MAX_HOUR_CONNECTING_TIME}h_max_connecting_time.csv", index=False)
     return connecting_pax_df
 
 
@@ -106,8 +106,8 @@ def generate_connecting_passenger_one_flight(arrival_row, df_departures: pd.Data
 
     # Filtrer les vols candidats selon les contraintes de temps de transfert
     departures_candidates = df_departures[
-        (df_departures['scheduled_time'] >= arrival_time + MINIMUM_TRANSFER_TIME) &
-        (df_departures['scheduled_time'] <= arrival_time + MAXIMUM_TRANSFER_TIME)
+        (df_departures['scheduled_time'] >= arrival_time + MINIMUM_CONNECTING_TIME) &
+        (df_departures['scheduled_time'] <= arrival_time + MAXIMUM_CONNECTING_TIME)
         ]
 
     nb_connecting_pax = generate_number_of_connecting_passengers(arrival_row['actual_passenger_count'])
@@ -152,7 +152,7 @@ def generate_connecting_passenger_one_flight(arrival_row, df_departures: pd.Data
 
 
 def display_connecting_pax_distribution():
-    df = pd.read_csv(DATA_FOLDER + 'connecting_passengers.csv')
+    df = pd.read_csv(DATA_FOLDER + 'connecting_passengers_3h_max_connecting_time.csv')
 
     df['transfer_time_theoretical_minutes'] = df['transfer_time_theoretical'] / 60
     df['transfer_time_actual_minutes'] = df['transfer_time_actual'] / 60
@@ -184,7 +184,7 @@ def display_connecting_pax_distribution():
     ax[1].tick_params(axis='both', which='major', labelsize=tick_fontsize)
 
     plt.tight_layout()
-    plt.savefig(f"medias/connecting_passengers_distribution/{DAY_LABEL}/transfer_time_distribution_{DAY_LABEL}.png")
+    plt.savefig(f"medias/connecting_passengers_distribution/{DAY_LABEL}/transfer_time_distribution_{DAY_LABEL}{MAX_HOUR_CONNECTING_TIME}h_max_conencting_time.png")
     # plt.show()
 
 
@@ -196,7 +196,7 @@ def compute_buffer_times(df):
     return df
 
 def display_buffer_time_distribution():
-    df = pd.read_csv(DATA_FOLDER + 'connecting_passengers.csv')
+    df = pd.read_csv(DATA_FOLDER + 'connecting_passengers_3h_max_connecting_time.csv')
 
     df = compute_buffer_times(df)
 
@@ -227,16 +227,16 @@ def display_buffer_time_distribution():
     ax[1].tick_params(axis='both', which='major', labelsize=tick_fontsize)
 
     plt.tight_layout()
-    # plt.savefig(f"medias/connecting_passengers_distribution/{DAY_LABEL}/buffer_time_distribution_{DAY_LABEL}.png")
-    plt.show()
+    plt.savefig(f"medias/connecting_passengers_distribution/{DAY_LABEL}/buffer_time_distribution_{DAY_LABEL}_{MAX_HOUR_CONNECTING_TIME}h_max_conencting_time.png")
+    # plt.show()
 
 
 if __name__ == "__main__":
-    DAY_LABEL = "max_delay_day"
-    filename = "df_max_delay_2019_06_07.csv"
+    # DAY_LABEL = "max_delay_day"
+    # filename = "df_max_delay_2019_06_07.csv"
 
-    # DAY_LABEL = "max_flight_day"
-    # filename = "df_max_flights_2019_06_24.csv"
+    DAY_LABEL = "max_flight_day"
+    filename = "df_max_flights_2019_06_24.csv"
 
     DATA_FOLDER = f"data/{DAY_LABEL}/"
 

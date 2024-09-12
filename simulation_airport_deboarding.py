@@ -71,17 +71,17 @@ if __name__ == "__main__":
     # # seat_allocation = SeatAllocation.RANDOM
     # # seat_allocation = SeatAllocation.CONNECTING_PRIORITY
     # for seat_allocation in [SeatAllocation.RANDOM, SeatAllocation.CONNECTING_PRIORITY]:
-    #     simulation = Simulation(quiet_mode=True, dummy_rows=2)
+    #     10_simulations_40_pct_prereserved_3h_connecting_time = Simulation(quiet_mode=True, dummy_rows=2)
     #
-    #     simulation.set_custom_aircraft(n_rows=30, n_seats_left=3, n_seats_right=3)
-    #     simulation.set_passengers_proportion(0.9)
+    #     10_simulations_40_pct_prereserved_3h_connecting_time.set_custom_aircraft(n_rows=30, n_seats_left=3, n_seats_right=3)
+    #     10_simulations_40_pct_prereserved_3h_connecting_time.set_passengers_proportion(0.9)
     #
-    #     simulation.set_passengers_proportion(passengers_proportion)
-    #     simulation.set_seat_allocation(seat_allocation)
-    #     simulation.run_multiple(nb_simu)
-    #     simulation.evaluate_missing_pax()
+    #     10_simulations_40_pct_prereserved_3h_connecting_time.set_passengers_proportion(passengers_proportion)
+    #     10_simulations_40_pct_prereserved_3h_connecting_time.set_seat_allocation(seat_allocation)
+    #     10_simulations_40_pct_prereserved_3h_connecting_time.run_multiple(nb_simu)
+    #     10_simulations_40_pct_prereserved_3h_connecting_time.evaluate_missing_pax()
     # end_time = time.time()
     # print(f"Total simulation_time: {round(end_time-start_time,3)}s")
     df_flight = pd.read_csv(DATA_FOLDER + FLIGHT_FILENAME)
-    df_connecting_pax = pd.read_csv(DATA_FOLDER + "connecting_passengers.csv")
+    df_connecting_pax = pd.read_csv(DATA_FOLDER + "connecting_passengers_old.csv")
     generate_flight_passengers(df_flight, df_connecting_pax)
