@@ -1,9 +1,9 @@
+import os
+
 import matplotlib.pyplot as plt
 import pandas as pd
-import os
-import json
-import numpy as np
 
+# DAY_LABEL = "max_delay_day"
 DAY_LABEL = "max_flight_day"
 
 RESULT_FOLDER = f"results/{DAY_LABEL}/10_simulations_20_pct_prereserved_3h_connecting_time/"
@@ -35,8 +35,8 @@ def display_missed_pax_strategies(savefig=False):
     fig, ax = plt.subplots(figsize=(14, 7))
 
     ax.boxplot(y_missed_pax.values(), patch_artist=True,
-               boxprops=dict(facecolor='lightblue', color='darkblue'),
-               medianprops=dict(color='red', linewidth=2),
+               boxprops=dict(facecolor='lightblue', color='darkblue',linewidth=1.5),
+               medianprops=dict(color='red', linewidth=1.5),
                whiskerprops=dict(color='black', linewidth=1.5),
                capprops=dict(color='black', linewidth=1.5))
 
@@ -60,38 +60,40 @@ def display_boxplot_deboarding_time(savefig=False):
     for csv_file in files:
         df = pd.read_csv(RESULT_FOLDER + csv_file)
         indexes = df[['Seat Allocation', 'Deboarding Strategy']].agg('-'.join, axis=1).values
-        values_missed_pax = df['Average Deboarding Time'].values
+        values_missed_pax = df['List Deboarding Time'].apply(lambda x: eval(x)).values
         if len(y_missed_pax) == 0:
-            y_missed_pax = dict(zip(indexes, [[e] for e in values_missed_pax]))
+            y_missed_pax = dict(zip(indexes, [e for e in values_missed_pax]))
         else:
             for i in range(len(indexes)):
-                y_missed_pax[indexes[i]].append(df['Average Deboarding Time'].values[i])
+                y_missed_pax[indexes[i]] += values_missed_pax[i]
 
+    # New color palette
+    colors = ['darkturquoise', 'blue', 'black', 'blue']  # Improved color palette
     fig, ax = plt.subplots(figsize=(14, 7))
-
     ax.boxplot(y_missed_pax.values(), patch_artist=True,
-               boxprops=dict(facecolor='lightblue', color='darkblue'),
-               medianprops=dict(color='red', linewidth=2),
-               whiskerprops=dict(color='black', linewidth=1.5),
-               capprops=dict(color='black', linewidth=1.5))
+               boxprops=dict(facecolor=colors[0], color=colors[1], linewidth=2),
+               medianprops=dict(color=colors[2], linewidth=2),
+               whiskerprops=dict(color=colors[3], linewidth=2),
+               capprops=dict(color=colors[3], linewidth=2))
 
     x_tick_labels = ["Courtesy-Random", "Aisle-Random", "Courtesy-Connecting pax", "Aisle-Connecting pax"]
-    # Rotate x-tick labels to fit
     ax.set_xticklabels(x_tick_labels, fontsize=14)
 
     ax.set_ylabel('Average Deboarding Time', fontsize=14)
     ax.grid(True, linestyle='--', alpha=0.6)
 
     if savefig:
-        plt.savefig(f"medias/boxplot/{DAY_LABEL}_missed_pax_.png", bbox_inches='tight')
+        plt.savefig(f"medias/boxplot/{DAY_LABEL}_deboarding_time.png", bbox_inches='tight')
     else:
         plt.show()
+
 
 
 def display_deboarding_time_bar(savefig=False):
     files = get_all_files_in_folder(RESULT_FOLDER)
     y_deboarding_time = {}
 
+    # Extracting the deboarding time data
     for csv_file in files:
         df = pd.read_csv(RESULT_FOLDER + csv_file)
         indexes = df[['Seat Allocation', 'Deboarding Strategy']].agg('-'.join, axis=1).values
@@ -101,30 +103,38 @@ def display_deboarding_time_bar(savefig=False):
         else:
             for i in range(len(indexes)):
                 y_deboarding_time[indexes[i]] += df['Average Deboarding Time'].values[i]
-    print(y_deboarding_time)
 
+    # Calculate the average deboarding time
     for key in y_deboarding_time.keys():
-        y_deboarding_time[key]/= len(files)
+        y_deboarding_time[key] /= len(files)
 
+    # Plotting the improved bar plot
     fig, ax = plt.subplots(figsize=(14, 7))
-    ax.bar(y_deboarding_time.keys(), y_deboarding_time.values(), color='darkblue', alpha=0.6)
+
+    # Using a gradient color for the bars
+    ax.bar(y_deboarding_time.keys(), y_deboarding_time.values(), color="darkturquoise")
+
+
+
+    # Adding a grid and improving axis labels
+    ax.set_ylabel('Passenger Deboarding Time (seconds)', fontsize=14, weight='bold')
 
     x_tick_labels = ["Courtesy-Random", "Aisle-Random", "Courtesy-Connecting pax", "Aisle-Connecting pax"]
     ax.set_xticklabels(x_tick_labels, fontsize=14)
-
-    ax.set_ylabel('Average Deboarding Time (seconds)', fontsize=14)
     ax.grid(True, linestyle='--', alpha=0.6)
 
+    # Setting tighter layout to fit labels
     plt.tight_layout()
+
+    # Save or display the plot
     if savefig:
         plt.savefig(f"medias/barplot/{DAY_LABEL}_deboarding_time.png", bbox_inches='tight')
     else:
         plt.show()
 
 
-
 if __name__ == '__main__':
     display_missed_pax_strategies(savefig=True)
-    # display_boxplot_deboarding_time()
+    display_boxplot_deboarding_time(savefig=True)
     display_deboarding_time_bar(savefig=True)
     # display_deboarding_time_line()
