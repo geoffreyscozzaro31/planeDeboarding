@@ -8,8 +8,7 @@ from scipy.interpolate import interp1d
 
 from config_deboarding import *
 
-FOLDER_DATA= "medias/deboarding/"
-FOLDER_RESULTS= "medias/deboarding/animations/"
+FOLDER_DATA = "medias/deboarding/"
 
 # DISEMBARKING_RULE_NAME = "aisle_priority_deboarding_rule"
 DISEMBARKING_RULE_NAME = "courtesy_deboarding_rule"
@@ -106,7 +105,7 @@ def generate_animation(save_animation=False):
     ax.set_xlim(-n_seats_left - 1, n_seats_right + 1)
     ax.set_ylim(-2, n_rows + dummy_rows)
     ax.set_xticks(np.arange(-n_seats_left, n_seats_right + 1))
-    ax.set_yticks(np.arange(0,n_rows + dummy_rows,2), np.arange(0,(n_rows + dummy_rows)//2) )
+    ax.set_yticks(np.arange(0, n_rows + dummy_rows, 2), np.arange(0, (n_rows + dummy_rows) // 2))
     plt.gca().invert_yaxis()
     fontsize = 18
     ax.grid(True, linestyle='--', alpha=0.6)
@@ -120,7 +119,7 @@ def generate_animation(save_animation=False):
     # scat = ax.scatter([], [], c=[], cmap=cmap, norm=plt.Normalize(vmin=0.5, vmax=len(State) + 0.5), s=100)
     scat = ax.scatter([], [], c=[], cmap=cmap, norm=plt.Normalize(vmin=0.5, vmax=len(State) + 0.5), s=100)
     cbar = plt.colorbar(scat, ax=ax, ticks=np.arange(1, len(State) + 1))
-    cbar.ax.set_yticklabels([state.name for state in State],fontsize=11)
+    cbar.ax.set_yticklabels([state.name for state in State], fontsize=11)
 
     # Time text
     time_template = 'Time: {:d}s'
@@ -141,14 +140,15 @@ def generate_animation(save_animation=False):
         return np.c_[x, y], np.array(c)
 
     saveframe_idx = []
+
     def update(frame):
         state = history_with_fictive_steps[frame]
         positions, colors = plot_state(state)
         scat.set_offsets(positions)
         scat.set_array(colors)
-        time_text.set_text(time_template.format(int(frame*TIME_STEP_DURATION/ NB_STEPS)))
+        time_text.set_text(time_template.format(int(frame * TIME_STEP_DURATION / NB_STEPS)))
         if frame in saveframe_idx:
-            fig.savefig(FOLDER_RESULTS+f'frame{frame}_{DISEMBARKING_RULE_NAME}.png',bbox_inches='tight')
+            fig.savefig(FOLDER_DATA + f'frames/sframe{frame}_{DISEMBARKING_RULE_NAME}.png', bbox_inches='tight')
             print(f"frame {frame} saved ! ")
         return scat, time_text
 
@@ -156,7 +156,7 @@ def generate_animation(save_animation=False):
     ani = FuncAnimation(fig, update, frames=frames, interval=0.1, blit=True)
     if save_animation:
         nb_fps = 45
-        ani.save(f'medias/deboarding/animations/animation_deboarding_{DISEMBARKING_RULE_NAME}_{nb_fps}fps_v2.gif',
+        ani.save(FOLDER_DATA + f'animations/animation_deboarding_{DISEMBARKING_RULE_NAME}_{nb_fps}fps_v2.gif',
                  writer='pillow',
                  fps=nb_fps, progress_callback=lambda i, n: print(f'Saving frame {i}/{len(frames)}'))
         print("Animation saved!")
