@@ -8,9 +8,14 @@ from scipy.interpolate import interp1d
 
 from config_deboarding import *
 
-FILE_PATH = f"medias/deboarding/random_{DISEMBARKING_RULE_NAME}_100pct_{NB_ROWS}_3_history_0.txt"
+FOLDER_DATA= "medias/deboarding/"
+FOLDER_RESULTS= "medias/deboarding/animations/"
 
-NB_STEPS = 4
+# DISEMBARKING_RULE_NAME = "aisle_priority_deboarding_rule"
+DISEMBARKING_RULE_NAME = "courtesy_deboarding_rule"
+FILE_PATH = FOLDER_DATA + f"{DISEMBARKING_RULE_NAME}_{NB_ROWS}rows_history.txt"
+
+NB_STEPS = 2
 
 
 class State(IntEnum):
@@ -94,7 +99,8 @@ def generate_animation(save_animation=False):
 
     history_with_fictive_steps = generate_fictive_steps(history, NB_STEPS)
 
-    fig, ax = plt.subplots(figsize=(6, 12))
+    # fig, ax = plt.subplots(figsize=(6, 12))
+    fig, ax = plt.subplots(figsize=(12, 12))
     plt.subplots_adjust(left=-1.2, right=0.95, top=0.99, bottom=0.05)
 
     ax.set_xlim(-n_seats_left - 1, n_seats_right + 1)
@@ -111,6 +117,7 @@ def generate_animation(save_animation=False):
 
     ax.set_aspect('equal', adjustable='box')
 
+    # scat = ax.scatter([], [], c=[], cmap=cmap, norm=plt.Normalize(vmin=0.5, vmax=len(State) + 0.5), s=100)
     scat = ax.scatter([], [], c=[], cmap=cmap, norm=plt.Normalize(vmin=0.5, vmax=len(State) + 0.5), s=100)
     cbar = plt.colorbar(scat, ax=ax, ticks=np.arange(1, len(State) + 1))
     cbar.ax.set_yticklabels([state.name for state in State],fontsize=11)
@@ -133,20 +140,23 @@ def generate_animation(save_animation=False):
 
         return np.c_[x, y], np.array(c)
 
+    saveframe_idx = []
     def update(frame):
         state = history_with_fictive_steps[frame]
         positions, colors = plot_state(state)
         scat.set_offsets(positions)
         scat.set_array(colors)
         time_text.set_text(time_template.format(int(frame*TIME_STEP_DURATION/ NB_STEPS)))
+        if frame in saveframe_idx:
+            fig.savefig(FOLDER_RESULTS+f'frame{frame}_{DISEMBARKING_RULE_NAME}.png',bbox_inches='tight')
+            print(f"frame {frame} saved ! ")
         return scat, time_text
 
     frames = list(history_with_fictive_steps.keys())
     ani = FuncAnimation(fig, update, frames=frames, interval=0.1, blit=True)
-
     if save_animation:
         nb_fps = 45
-        ani.save(f'medias/deboarding/animations/animation_deboarding_{DISEMBARKING_RULE_NAME}_{nb_fps}fps.gif',
+        ani.save(f'medias/deboarding/animations/animation_deboarding_{DISEMBARKING_RULE_NAME}_{nb_fps}fps_v2.gif',
                  writer='pillow',
                  fps=nb_fps, progress_callback=lambda i, n: print(f'Saving frame {i}/{len(frames)}'))
         print("Animation saved!")
@@ -155,4 +165,4 @@ def generate_animation(save_animation=False):
 
 
 if __name__ == "__main__":
-    generate_animation(save_animation=False)
+    generate_animation(save_animation=True)

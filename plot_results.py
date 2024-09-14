@@ -1,11 +1,13 @@
 import os
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
+
 from config_deboarding import GATE_CLOSE_TIME
 
-DAY_LABEL = "max_delay_day"
-# DAY_LABEL = "max_flight_day"
+# DAY_LABEL = "max_delay_day"
+DAY_LABEL = "max_flight_day"
 
 RESULT_FOLDER = f"results/{DAY_LABEL}/10_simulations_20_pct_prereserved_3h_connecting_time/"
 
@@ -35,14 +37,16 @@ def display_missed_pax_strategies(savefig=False):
 
     fig, ax = plt.subplots(figsize=(14, 7))
 
+    for key in y_missed_pax.keys():
+        print(key, np.mean(y_missed_pax[key]))
+
     ax.boxplot(y_missed_pax.values(), patch_artist=True,
                boxprops=dict(facecolor='lightblue', color='darkblue',linewidth=1.5),
                medianprops=dict(color='red', linewidth=1.5),
                whiskerprops=dict(color='black', linewidth=1.5),
                capprops=dict(color='black', linewidth=1.5))
 
-    x_tick_labels = ["Courtesy-Random", "Aisle-Random", "Courtesy-Connecting pax", "Aisle-Connecting pax"]
-    # Rotate x-tick labels to fit
+    x_tick_labels = ["Random-Courtesy", "Random-Aisle", "Connecting pax-Courtesy", "Connecting pax-Courtesy"]
     ax.set_xticklabels(x_tick_labels, fontsize=14)
 
     ax.set_ylabel('Total Passengers Missing their Flights', fontsize=14)
@@ -77,7 +81,7 @@ def display_boxplot_deboarding_time(savefig=False):
                whiskerprops=dict(color=colors[3], linewidth=2),
                capprops=dict(color=colors[3], linewidth=2))
 
-    x_tick_labels = ["Courtesy-Random", "Aisle-Random", "Courtesy-Connecting pax", "Aisle-Connecting pax"]
+    x_tick_labels = ["Random-Courtesy", "Random-Aisle", "Connecting pax-Courtesy", "Connecting pax-Courtesy"]
     ax.set_xticklabels(x_tick_labels, fontsize=14)
 
     ax.set_ylabel('Average Deboarding Time', fontsize=14)
@@ -120,7 +124,7 @@ def display_deboarding_time_bar(savefig=False):
     # Adding a grid and improving axis labels
     ax.set_ylabel('Passenger Deboarding Time (seconds)', fontsize=14, weight='bold')
 
-    x_tick_labels = ["Courtesy-Random", "Aisle-Random", "Courtesy-Connecting pax", "Aisle-Connecting pax"]
+    x_tick_labels = ["Random-Courtesy", "Random-Aisle", "Connecting pax-Courtesy", "Connecting pax-Courtesy"]
     ax.set_xticklabels(x_tick_labels, fontsize=14)
     ax.grid(True, linestyle='--', alpha=0.6)
 
@@ -134,8 +138,50 @@ def display_deboarding_time_bar(savefig=False):
         plt.show()
 
 
+def display_bar_plot_missed_pax_prereserved_seats(folder_path, savefig=False):
+    files = get_all_files_in_folder(folder_path)
+    y_missed_pax = {}
+
+    # Extracting the deboarding time data
+    for i,csv_file in enumerate(files):
+
+        percentage = int(csv_file.split("_")[2][:-7])
+        df = pd.read_csv(folder_path + csv_file)
+        print(percentage)
+        y_missed_pax[percentage] = df['Total Missed Pax'].values[0]
+
+
+
+    # Plotting the improved bar plot
+    fig, ax = plt.subplots(figsize=(14, 7))
+
+    # Using a gradient color for the bars
+    ax.bar(y_missed_pax.keys(), y_missed_pax.values(), width = 15, color="darkcyan")
+
+
+
+
+
+    xticks = [0, 20, 40, 60, 80, 100]
+    ax.set_xticks(xticks)
+    x_tick_labels = [f"{i}%" for i in xticks]
+    ax.set_xticklabels(x_tick_labels, fontsize=14)
+    ax.grid(True, linestyle='--', alpha=0.6)
+    plt.tick_params(axis='y', labelsize=14)  # Change '14' to the desired size
+
+    ax.set_ylabel('Total number of passenger missing their flights', fontsize=16)
+    ax.set_xlabel('Percentage of pre-reserved seats', fontsize=16)
+    if savefig:
+        plt.savefig(f"medias/barplot/{DAY_LABEL}_missed_pax_prereserved_seats_evolution.png", bbox_inches='tight')
+    else:
+        plt.show()
+
+
+
 if __name__ == '__main__':
-    display_missed_pax_strategies(savefig=True)
-    display_boxplot_deboarding_time(savefig=True)
-    display_deboarding_time_bar(savefig=True)
+    display_missed_pax_strategies(savefig=False)
+    display_boxplot_deboarding_time(savefig=False)
+    display_deboarding_time_bar(savefig=False)
     # display_deboarding_time_line()
+    # folder_result = "results/max_flight_day/simulations_evolution_percentage_prereserved_seats/"
+    # display_bar_plot_missed_pax_prereserved_seats(folder_result, savefig=True)
