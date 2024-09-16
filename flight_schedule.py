@@ -92,9 +92,9 @@ def process_all_arrivals(filename):
         id_arrival_flight, nb_pax = arrival_row.name, arrival_row['actual_passenger_count']
         new_entry = pd.DataFrame({"arrival_flight_id": [id_arrival_flight], "actual_passenger_count": [nb_pax]})
         df_arrival_flights = pd.concat([df_arrival_flights, new_entry], ignore_index=True)
-    df_arrival_flights.to_csv(DATA_FOLDER + f"df_arrival_flights_{MAX_HOUR_CONNECTING_TIME}h_max_connecting_time.csv",
+    df_arrival_flights.to_csv(DATA_FOLDER + f"df_arrival_flights_{MAX_HOUR_CONNECTING_TIME}h_max_connecting_time_test.csv",
                               index=False)
-    connecting_pax_df.to_csv(DATA_FOLDER + f"connecting_passengers_{MAX_HOUR_CONNECTING_TIME}h_max_connecting_time.csv",
+    connecting_pax_df.to_csv(DATA_FOLDER + f"connecting_passengers_{MAX_HOUR_CONNECTING_TIME}h_max_connecting_time_test.csv",
                              index=False)
     return connecting_pax_df
 
@@ -154,7 +154,7 @@ def generate_connecting_passenger_one_flight(arrival_row, df_departures: pd.Data
     return arrival_row, connecting_pax_df, nb_actual_connecting_pax
 
 
-def display_connecting_pax_distribution():
+def display_connecting_pax_distribution(savefig=False):
     df = pd.read_csv(DATA_FOLDER + 'connecting_passengers_3h_max_connecting_time.csv')
 
     df['transfer_time_theoretical_minutes'] = df['transfer_time_theoretical'] / 60
@@ -187,9 +187,11 @@ def display_connecting_pax_distribution():
     ax[1].tick_params(axis='both', which='major', labelsize=tick_fontsize)
 
     plt.tight_layout()
-    plt.savefig(
-        f"medias/connecting_passengers_distribution/{DAY_LABEL}/transfer_time_distribution_{DAY_LABEL}{MAX_HOUR_CONNECTING_TIME}h_max_conencting_time.png")
-    # plt.show()
+    if savefig:
+        plt.savefig(
+            f"medias/connecting_passengers_distribution/{DAY_LABEL}/transfer_time_distribution_{DAY_LABEL}{MAX_HOUR_CONNECTING_TIME}h_max_conencting_time.png")
+    else:
+        plt.show()
 
 
 def compute_buffer_times(df):
@@ -201,7 +203,7 @@ def compute_buffer_times(df):
     return df
 
 
-def display_buffer_time_distribution():
+def display_buffer_time_distribution(savefig=False):
     df = pd.read_csv(DATA_FOLDER + 'connecting_passengers_3h_max_connecting_time.csv')
 
     df = compute_buffer_times(df)
@@ -233,9 +235,11 @@ def display_buffer_time_distribution():
     ax[1].tick_params(axis='both', which='major', labelsize=tick_fontsize)
 
     plt.tight_layout()
-    plt.savefig(
+    if savefig:
+        plt.savefig(
         f"medias/connecting_passengers_distribution/{DAY_LABEL}/buffer_time_distribution_{DAY_LABEL}_{MAX_HOUR_CONNECTING_TIME}h_max_conencting_time.png")
-    # plt.show()
+    else:
+        plt.show()
 
 
 def compute_main_characteristics_day(filename):
@@ -277,12 +281,12 @@ if __name__ == "__main__":
 
     DATA_FOLDER = f"data/{DAY_LABEL}/"
 
-    # connecting_pax_df = process_all_arrivals(DATA_FOLDER + filename)
+    connecting_pax_df = process_all_arrivals(DATA_FOLDER + filename)
 
     # print("Connecting passengers DataFrame:")
     # print(connecting_pax_df)
-    # display_connecting_pax_distribution()
-    # display_buffer_time_distribution()
+    display_connecting_pax_distribution(savefig=False)
+    display_buffer_time_distribution(savefig=False)
 
     compute_main_characteristics_day(DATA_FOLDER + filename)
     compute_main_characteristics_connecting_passengers(DATA_FOLDER + "connecting_passengers_3h_max_connecting_time.csv")

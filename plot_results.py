@@ -35,7 +35,7 @@ def display_missed_pax_strategies(savefig=False):
             for i in range(len(indexes)):
                 y_missed_pax[indexes[i]].append(df['Total Missed Pax'].values[i])
 
-    fig, ax = plt.subplots(figsize=(14, 7))
+    fig, ax = plt.subplots(figsize=(16, 6))
 
     for key in y_missed_pax.keys():
         print(key, np.mean(y_missed_pax[key]))
@@ -46,10 +46,11 @@ def display_missed_pax_strategies(savefig=False):
                whiskerprops=dict(color='black', linewidth=1.5),
                capprops=dict(color='black', linewidth=1.5))
 
-    x_tick_labels = ["Random-Courtesy", "Random-Aisle", "Connecting pax-Courtesy", "Connecting pax-Courtesy"]
-    ax.set_xticklabels(x_tick_labels, fontsize=14)
+    x_tick_labels = ["Random-Courtesy", "Random-Aisle", "Connecting-Courtesy", "Connecting-Aisle"]
+    ax.set_xticklabels(x_tick_labels, fontsize=18)
+    plt.tick_params(axis='y', labelsize=16)
 
-    ax.set_ylabel('Total Passengers Missing their Flights', fontsize=14)
+    ax.set_ylabel('Nb of passengers missing their flights', fontsize=18)
     ax.grid(True, linestyle='--', alpha=0.6)
 
     if savefig:
@@ -74,17 +75,18 @@ def display_boxplot_deboarding_time(savefig=False):
 
     # New color palette
     colors = ['darkturquoise', 'blue', 'black', 'blue']  # Improved color palette
-    fig, ax = plt.subplots(figsize=(14, 7))
+    fig, ax = plt.subplots(figsize=(16, 6))
     ax.boxplot(y_missed_pax.values(), patch_artist=True,
                boxprops=dict(facecolor=colors[0], color=colors[1], linewidth=2),
                medianprops=dict(color=colors[2], linewidth=2),
                whiskerprops=dict(color=colors[3], linewidth=2),
                capprops=dict(color=colors[3], linewidth=2))
 
-    x_tick_labels = ["Random-Courtesy", "Random-Aisle", "Connecting pax-Courtesy", "Connecting pax-Courtesy"]
-    ax.set_xticklabels(x_tick_labels, fontsize=14)
+    x_tick_labels = ["Random-Courtesy", "Random-Aisle", "Connecting-Courtesy", "Connecting-Aisle"]
+    ax.set_xticklabels(x_tick_labels, fontsize=18)
+    plt.tick_params(axis='y', labelsize=16)
 
-    ax.set_ylabel('Average Deboarding Time', fontsize=14)
+    ax.set_ylabel('Passenger disembarkation time', fontsize=18)
     ax.grid(True, linestyle='--', alpha=0.6)
 
     if savefig:
@@ -98,7 +100,6 @@ def display_deboarding_time_bar(savefig=False):
     files = get_all_files_in_folder(RESULT_FOLDER)
     y_deboarding_time = {}
 
-    # Extracting the deboarding time data
     for csv_file in files:
         df = pd.read_csv(RESULT_FOLDER + csv_file)
         indexes = df[['Seat Allocation', 'Deboarding Strategy']].agg('-'.join, axis=1).values
@@ -109,29 +110,22 @@ def display_deboarding_time_bar(savefig=False):
             for i in range(len(indexes)):
                 y_deboarding_time[indexes[i]] += df['Average Deboarding Time'].values[i]
 
-    # Calculate the average deboarding time
     for key in y_deboarding_time.keys():
         y_deboarding_time[key] /= len(files)
 
-    # Plotting the improved bar plot
     fig, ax = plt.subplots(figsize=(14, 7))
 
-    # Using a gradient color for the bars
     ax.bar(y_deboarding_time.keys(), y_deboarding_time.values(), color="darkturquoise")
 
+    ax.set_ylabel('Passenger Deboarding Time (seconds)', fontsize=16, weight='bold')
 
-
-    # Adding a grid and improving axis labels
-    ax.set_ylabel('Passenger Deboarding Time (seconds)', fontsize=14, weight='bold')
-
-    x_tick_labels = ["Random-Courtesy", "Random-Aisle", "Connecting pax-Courtesy", "Connecting pax-Courtesy"]
-    ax.set_xticklabels(x_tick_labels, fontsize=14)
+    x_tick_labels = ["Random-Courtesy", "Random-Aisle", "Connecting-Courtesy", "Connecting-Aisle"]
+    ax.set_xticklabels(x_tick_labels, fontsize=16)
     ax.grid(True, linestyle='--', alpha=0.6)
+    plt.tick_params(axis='y', labelsize=16)
 
-    # Setting tighter layout to fit labels
     plt.tight_layout()
 
-    # Save or display the plot
     if savefig:
         plt.savefig(f"medias/barplot/{DAY_LABEL}_deboarding_time_{int(GATE_CLOSE_TIME/60)}min_gate_closure.png", bbox_inches='tight')
     else:
@@ -154,6 +148,8 @@ def display_bar_plot_missed_pax_prereserved_seats(folder_path, savefig=False):
 
     # Plotting the improved bar plot
     fig, ax = plt.subplots(figsize=(14, 7))
+
+    print(y_missed_pax)
 
     # Using a gradient color for the bars
     ax.bar(y_missed_pax.keys(), y_missed_pax.values(), width = 15, color="darkcyan")
@@ -179,9 +175,9 @@ def display_bar_plot_missed_pax_prereserved_seats(folder_path, savefig=False):
 
 
 if __name__ == '__main__':
-    display_missed_pax_strategies(savefig=False)
-    display_boxplot_deboarding_time(savefig=False)
+    display_missed_pax_strategies(savefig=True)
+    display_boxplot_deboarding_time(savefig=True)
     display_deboarding_time_bar(savefig=False)
     # display_deboarding_time_line()
-    # folder_result = "results/max_flight_day/simulations_evolution_percentage_prereserved_seats/"
-    # display_bar_plot_missed_pax_prereserved_seats(folder_result, savefig=True)
+    folder_result = "results/max_flight_day/simulations_evolution_percentage_prereserved_seats/"
+    display_bar_plot_missed_pax_prereserved_seats(folder_result, savefig=False)

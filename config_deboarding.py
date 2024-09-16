@@ -38,12 +38,5 @@ MAX_PERCENTAGE_PRERESERVED_SEATS = 40 + 5  # add stochasticity to the pre-reserv
 T_MAX_SIMULATION = 10000  # in time steps
 NB_SIMULATION = 10
 
-#
-# IS_COURTESY_RULE = False
-# if IS_COURTESY_RULE:
-#     DISEMBARKING_RULE_NAME = "courtesy"
-# else:
-#     DISEMBARKING_RULE_NAME = "aisle_priority"
-#
 
 GATE_CLOSE_TIME = 20 * 60  # in seconds

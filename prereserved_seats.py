@@ -73,9 +73,8 @@ def check_for_duplicates(seats):
     return len(seats) != len(set(seats))
 
 
-def display_prereserved_seat_probability():
-    nb_rows, nb_cols = 20, 7
-
+def display_prereserved_seat_probability( nb_rows=20, nb_cols = 6, savefig=False):
+    nb_cols +=1 # to account for the aisle
     grid = generate_probability_matrix(nb_rows, nb_cols)
 
     grid = grid / np.sum(grid) * 100
@@ -85,7 +84,7 @@ def display_prereserved_seat_probability():
     cmap = plt.get_cmap('Reds')
     norm = mcolors.Normalize(vmin=0, vmax=vmax)
 
-    fig, ax = plt.subplots(figsize=(16, 8))  # Increased width for wider cells
+    fig, ax = plt.subplots(figsize=(20, 6))
     cax = ax.matshow(grid, cmap=cmap, norm=norm)
 
     ft = 14
@@ -115,9 +114,10 @@ def display_prereserved_seat_probability():
                 ax.text(r, c, f'{grid[c, r]:.1f}%', ha='center', va='center', color='black', fontsize=11)
 
     plt.xlabel('Row number', fontsize=ft)
-
-    # plt.savefig('medias/prereserved_seat_probability_distribution.png', bbox_inches="tight")
-    plt.show()
+    if savefig:
+        plt.savefig('medias/prereserved_seat_probability_distribution.png', bbox_inches="tight")
+    else:
+        plt.show()
 
 
 if __name__ == '__main__':
@@ -130,3 +130,5 @@ if __name__ == '__main__':
 
     res = assign_prereserved_seats(nb_pax_prereserved, nb_total_pax, probability_matrix=grid)
     print(res)
+
+    display_prereserved_seat_probability(30,6,savefig=True)
