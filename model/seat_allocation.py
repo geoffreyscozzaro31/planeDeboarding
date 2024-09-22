@@ -1,0 +1,5 @@
+from enum import Enum
+
+class SeatAllocation(Enum):
+    RANDOM = "RANDOM_SEAT_ALLOCATION"
+    CONNECTING_PRIORITY = "CONNECTING_PAX_PRIORITY_SEAT_ALLOCATION"

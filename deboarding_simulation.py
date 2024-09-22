@@ -1,67 +1,24 @@
+"""
+This script is used to simulate the deboarding of passengers from an aircraft with a single aisle cabin.
+"""
+
 import logging
 from collections import defaultdict
-import time
-from enum import Enum, IntEnum
 from typing import List
 
-import pandas as pd
-from scipy.stats import weibull_min
-
-import flight_schedule
 import prereserved_seats
 from config_deboarding import *
-
-# DAY_LABEL = "max_delay_day"
-
-
-DAY_LABEL = "max_flight_day"
-
-
-class State(IntEnum):
-    UNDEFINED = 0
-    SEATED = 1
-    STAND_UP_FROM_SEAT = 2
-    MOVE_WAIT = 3
-    MOVE_FROM_ROW = 4
-    DISEMBARKED = 5
+from model.deboarding_strategy import DeboardingStrategy
+from model.passenger import Passenger
+from model.passenger_state import PassengerState
+from model.seat_allocation import SeatAllocation
 
 
-class SeatAllocation(Enum):
-    RANDOM = "RANDOM_SEAT_ALLOCATION"
-    CONNECTING_PRIORITY = "CONNECTING_PAX_PRIORITY_SEAT_ALLOCATION"
-
-
-class DeboardingStrategy(Enum):
-    COURTESY_RULE = "COURTESY_DEBOARDING_RULE"
-    AISLE_PRIORITY_RULE = "AISLE_PRIORITY_DEBOARDING_RULE"
-
-
-class Passenger:
-    def __init__(self, seat_row, seat, has_luggage, has_pre_reserved_seat):
-        self.seat_row = seat_row
-        self.seat = seat  # seat number (e.g. 1-3 for places on the right, negative numbers for places to the left)
-        self.actual_slack_time = -1  # actual remaining time  for this pax for his transfer, set to np.inf if not connecting pax
-        self.scheduled_slack_time = -1  # schedule remaining time for this pax for his transfer, set to np.inf if not connecting pax
-        self.deboarding_time = -1
-        self.has_luggage = has_luggage
-        self.state = State.SEATED
-        self.x = seat
-        self.y = seat_row
-        self.is_seated = True
-        self.next_action_t = 0
-        self.has_pre_reserved_seat = has_pre_reserved_seat
-        if self.has_luggage:
-            time_w = weibull_min.rvs(ALPHA_WEIBULL, scale=BETA_WEIBULL) / 2
-            self.collecting_luggage_time = int(np.ceil(time_w / TIME_STEP_DURATION))
-        else:
-            self.collecting_luggage_time = 0
-
-
-class Simulation:
-    def __init__(self, dummy_rows=2, quiet_mode=True):
-        self.dummy_rows = dummy_rows  # Add fictive rows  to model empty space at the top of the aircraft
-        self.nb_rows=-1
-        self.n_fictive_rows = -1 #depends on the number of rows and the dummy rows and cell size
+class DeboardingSimulation:
+    def __init__(self, quiet_mode=True):
+        self.dummy_rows = DUMMY_ROWS  # Add fictive rows  to model empty space at the top of the aircraft
+        self.nb_rows = -1
+        self.n_fictive_rows = -1  # depends on the number of rows and the dummy rows and cell size
         self.n_seats_left = -1
         self.n_seats_right = -1
 
@@ -84,27 +41,8 @@ class Simulation:
         self.nb_prereserved_seats = 0
         self.disembarkation_time = -1
 
-    def prepare_simulation(self, nb_rows, nb_pax_carried, connecting_pax_df, percentage_prereserved_seats=-1, activate_connecting_pax=True):
-        """
-        Prepares the 10_simulations_40_pct_prereserved_3h_connecting_time_without_gate_closure_time by setting up the aircraft and passengers. Do it stochastically, each time this method is launched
-        a new 10_simulations_40_pct_prereserved_3h_connecting_time_without_gate_closure_time instance is generated.
-
-        Parameters:
-        nb_rows (int): Number of rows in the aircraft.
-        nb_pax_carried (int): Total number of passengers carried on the flight.
-        crop_df (pd.DataFrame): DataFrame containing information about connecting flights.
-
-        The function performs the following steps:
-        1. Sets up the custom aircraft configuration.
-        2. Sets the number of passengers.
-        3. Sets the connecting time for passengers.
-        4. Identifies passengers with pre-reserved seats.
-        5. Identifies passengers having luggage.
-        6. Sets the probability matrix for pre-reserved seats.
-        7. Allocates seats to passengers.
-        8. Creates passenger objects.
-        9. Sorts passengers for 10_simulations_40_pct_prereserved_3h_connecting_time_without_gate_closure_time.
-        """
+    def prepare_simulation(self, nb_rows, nb_pax_carried, connecting_pax_df, percentage_prereserved_seats=-1,
+                           activate_connecting_pax=True):
         self.set_custom_aircraft(n_rows=nb_rows, n_seats_left=NB_SEAT_LEFT, n_seats_right=NB_SEAT_RIGHT)
         self.set_number_passengers(nb_pax_carried)
 
@@ -117,7 +55,7 @@ class Simulation:
         if activate_connecting_pax:
             self.sort_passengers()
 
-    def randomize_initialisation(self,activate_connecting_pax=True):
+    def randomize_initialisation(self, activate_connecting_pax=True):
         self.set_passengers_with_prereserved_seats()
         self.set_passengers_having_luggage()
         self.set_passenger_seat_allocation()
@@ -126,20 +64,6 @@ class Simulation:
             self.sort_passengers()
 
     def set_connecting_time_pax(self, df_connecting_flight, nb_pax_carried, default_transfer_time_seconds=-1):
-        """
-        Sets the connecting time for passengers based on the provided flight data.
-
-        Parameters:
-        df_connecting_flight (pd.DataFrame): DataFrame containing information about connecting flights.
-        nb_pax_carried (int): Total number of passengers carried on the flight.
-
-        The function performs the following steps:
-        1. Extracts the number of connecting passengers and their buffer times from the DataFrame.
-        2. Repeats the buffer times according to the number of connecting passengers.
-        3. Calculates the number of remaining passengers and assigns them an infinite buffer time.
-        4. Shuffles the list of connecting times to randomize the order.
-
-        """
         if len(df_connecting_flight) == 0:
             print("warning: empty connecting flight dataframe")
         else:
@@ -152,7 +76,6 @@ class Simulation:
                 connecting_pax_list = np.repeat(buffer_time_list, nb_pax_list)
                 nb_connecting_pax = len(connecting_pax_list)
                 remaining_pax = nb_pax_carried - len(connecting_pax_list)
-                # print(remaining_pax, nb_pax_carried, len(connecting_pax_list))
                 connecting_pax_list = np.concatenate((connecting_pax_list, np.full(remaining_pax, np.inf)))
                 list_connecting_pax_lists.append(connecting_pax_list)
 
@@ -192,7 +115,7 @@ class Simulation:
     def reset_passengers(self):
         for p in self.passengers:
             if p != None:
-                p.state = State.SEATED
+                p.state = PassengerState.SEATED
                 p.deboarding_time = -1
                 p.next_action_t = 0
                 p.x = p.seat
@@ -221,14 +144,11 @@ class Simulation:
         self.aisle = np.zeros(self.n_fictive_rows * 2 + self.dummy_rows, dtype=int)
         self.luggage_bin = np.zeros((self.n_fictive_rows * 2 + self.dummy_rows, 2), dtype=int)
         self.deboarding_order_left = np.zeros((self.n_fictive_rows * 2 + self.dummy_rows, self.n_seats_left), dtype=int)
-        self.deboarding_order_right = np.zeros((self.n_fictive_rows * 2 + self.dummy_rows, self.n_seats_right), dtype=int)
+        self.deboarding_order_right = np.zeros((self.n_fictive_rows * 2 + self.dummy_rows, self.n_seats_right),
+                                               dtype=int)
         self.fill_aircraft()
         self.reset_stats()
         self.reset_passengers()
-
-
-
-
 
     def fill_aircraft(self):
         for i, passenger in enumerate(self.passengers[1:]):
@@ -270,7 +190,6 @@ class Simulation:
             else:
                 self.passengers_seat_allocation_list.append(other_seats[other_index])
                 other_index += 1
-        print('ook')
 
     def create_passengers(self):
         self.passengers = [None]
@@ -292,7 +211,6 @@ class Simulation:
         self.passengers, self.passenger_has_pre_reserved_seat_list, self.scheduled_connecting_time_pax_list, self.actual_connecting_time_pax_list = zip(
             *combined_list)
         self.passengers = [None] + list(self.passengers)
-        # print(self.passengers)
         self.passenger_has_pre_reserved_seat_list = list(self.passenger_has_pre_reserved_seat_list)
         self.scheduled_connecting_time_pax_list = list(self.scheduled_connecting_time_pax_list)
         self.actual_connecting_time_pax_list = list(self.actual_connecting_time_pax_list)
@@ -313,9 +231,9 @@ class Simulation:
 
                 else:
                     raise ValueError("Unknown seat allocation strategy")
-                # print(self.deboarding_strategy)
 
-                other_passengers_scheduled_deboarding_time = [p.scheduled_slack_time for p in non_pre_reserved_passengers]
+                other_passengers_scheduled_deboarding_time = [p.scheduled_slack_time for p in
+                                                              non_pre_reserved_passengers]
                 other_passengers_actual_deboarding_time = [p.actual_slack_time for p in non_pre_reserved_passengers]
 
                 sorted_indices = sorted(range(len(other_passengers_scheduled_deboarding_time)),
@@ -334,22 +252,21 @@ class Simulation:
             print(*args)
 
     # Run multiple simulations
-    def run_simulation(self, nb_rows, nb_pax_carried, connecting_pax_df, seat_allocation_strategy_list, deboarding_strategy_list,
+    def run_simulation(self, nb_rows, nb_pax_carried, connecting_pax_df, seat_allocation_strategy_list,
+                       deboarding_strategy_list,
                        percentage_prereserved_seats=-1, quiet_mode=True):
         activate_connecting_pax = len(connecting_pax_df) > 0
 
-        self.prepare_simulation(nb_rows, nb_pax_carried, connecting_pax_df, percentage_prereserved_seats,activate_connecting_pax)
+        self.prepare_simulation(nb_rows, nb_pax_carried, connecting_pax_df, percentage_prereserved_seats,
+                                activate_connecting_pax)
         results_missed_pax = {(seat_allocation_strategy.value, deboarding_strategy.value): 0 for
                               seat_allocation_strategy in
                               seat_allocation_strategy_list for deboarding_strategy in deboarding_strategy_list}
         results_deboarding_time = {(seat_allocation_strategy.value, deboarding_strategy.value): 0 for
                                    seat_allocation_strategy in
                                    seat_allocation_strategy_list for deboarding_strategy in deboarding_strategy_list}
-        # self.randomize_initialisation()
         for seat_allocation_strategy in seat_allocation_strategy_list:
             for deboarding_strategy in deboarding_strategy_list:
-                # print(
-                #     f"******* run 10_simulations_40_pct_prereserved_3h_connecting_time_without_gate_closure_time with {seat_allocation_strategy.value} with {deboarding_strategy.value} ....")
                 self.set_seat_allocation_strategy(seat_allocation_strategy)
                 self.set_deboarding_strategy(deboarding_strategy)
                 self.assign_passenger_connecting_times(activate_connecting_pax)
@@ -364,7 +281,6 @@ class Simulation:
 
         return results_missed_pax, results_deboarding_time
 
-    # Run a single 10_simulations_40_pct_prereserved_3h_connecting_time_without_gate_closure_time
     def run(self):
         self.reset()
         deboarding_completed = False
@@ -375,7 +291,7 @@ class Simulation:
                 self.print()
             self.t += 1
         disembarkation_time = self.t * TIME_STEP_DURATION
-        print(f"Total minutes to disembark all pax: {round(disembarkation_time/60, 2)}minutes")
+        print(f"Total minutes to disembark all pax: {round(disembarkation_time / 60, 2)}minutes")
         self.disembarkation_time = disembarkation_time
 
     def step(self):
@@ -383,14 +299,14 @@ class Simulation:
         for i, p in enumerate(self.passengers):
             if i == 0: continue
 
-            if p.state != State.DISEMBARKED:
+            if p.state != PassengerState.DISEMBARKED:
                 self.history[self.t].append([self.t, i, p.x, p.y, int(p.state)])
 
             if p.next_action_t > self.t:
                 continue
 
             match p.state:
-                case State.SEATED:
+                case PassengerState.SEATED:
                     random_left_right = np.random.randint(0, 2)
                     is_courtesy_rule = self.deboarding_strategy == DeboardingStrategy.COURTESY_RULE
                     if p.x == 1:
@@ -402,7 +318,7 @@ class Simulation:
                                     self.side_right[p.y][0] = 0
                                     p.x = 0
                                     self.aisle[p.y] = i
-                                    p.state = State.STAND_UP_FROM_SEAT
+                                    p.state = PassengerState.STAND_UP_FROM_SEAT
                                     p.next_action_t = self.t + STAND_UP_DURATION
                                 else:
                                     p.next_action_t = self.t + 1
@@ -414,7 +330,7 @@ class Simulation:
                                 self.side_left[p.y][NB_SEAT_LEFT - 1] = 0
                                 p.x = 0
                                 self.aisle[p.y] = i
-                                p.state = State.STAND_UP_FROM_SEAT
+                                p.state = PassengerState.STAND_UP_FROM_SEAT
                                 p.next_action_t = self.t + STAND_UP_DURATION
                             else:
                                 p.next_action_t = self.t + 1
@@ -437,31 +353,31 @@ class Simulation:
                         else:
                             p.next_action_t = self.t + 1
 
-                case State.STAND_UP_FROM_SEAT:
+                case PassengerState.STAND_UP_FROM_SEAT:
                     if p.has_luggage:
-                        p.state = State.MOVE_WAIT
+                        p.state = PassengerState.MOVE_WAIT
                         p.next_action_t = self.t + p.collecting_luggage_time
                         ind = 0 if p.seat < 0 else 1
                         self.luggage_bin[p.seat_row][ind] += 1
                         self.history_luggage.append([self.t, p.seat_row, ind])
                     elif self.aisle[p.y - 1] != 0:
-                        p.state = State.MOVE_WAIT
+                        p.state = PassengerState.MOVE_WAIT
                         p.next_action_t = self.t + 1
                     else:
                         # We can go!
                         p.next_action_t = self.t + WALK_DURATION
-                        p.state = State.MOVE_FROM_ROW
+                        p.state = PassengerState.MOVE_FROM_ROW
                         self.aisle[p.y] = 0
                         p.y -= 1
                         self.aisle[p.y] = i
 
-                case State.MOVE_WAIT:
+                case PassengerState.MOVE_WAIT:
                     if p.y == 0:
                         if self.exit_corridor[p.x + self.n_seats_left - 1] != 0:
                             p.next_action_t = self.t + 1  # Wait until the corridor is free
                         else:
                             p.next_action_t = self.t + WALK_DURATION
-                            p.state = State.MOVE_FROM_ROW
+                            p.state = PassengerState.MOVE_FROM_ROW
                             if p.x == 0:
                                 self.aisle[p.y] = 0
                             else:
@@ -473,16 +389,16 @@ class Simulation:
                             p.next_action_t = self.t + 1  # Wait until the aisle is free
                         else:
                             p.next_action_t = self.t + WALK_DURATION
-                            p.state = State.MOVE_FROM_ROW
+                            p.state = PassengerState.MOVE_FROM_ROW
                             self.aisle[p.y] = 0
                             p.y -= 1
                             self.aisle[p.y] = i
 
-                case State.MOVE_FROM_ROW:
+                case PassengerState.MOVE_FROM_ROW:
                     if p.y == 0:
                         if p.x > -2:
                             if self.exit_corridor[p.x + self.n_seats_left - 1] != 0:
-                                p.state = State.MOVE_WAIT
+                                p.state = PassengerState.MOVE_WAIT
                                 p.next_action_t = self.t + 1  # Wait until the next corridor position is free
                             else:
                                 if p.x == 0:
@@ -493,16 +409,16 @@ class Simulation:
                                 self.exit_corridor[p.x + self.n_seats_left] = i
                         else:
                             if self.t < BUFFER_TIME_GATE_CONNECTING / TIME_STEP_DURATION:
-                                p.state = State.MOVE_WAIT
+                                p.state = PassengerState.MOVE_WAIT
                                 p.next_action_t = BUFFER_TIME_GATE_CONNECTING / TIME_STEP_DURATION  # Wait until the next corridor position is free
 
                             else:
-                                p.state = State.DISEMBARKED
+                                p.state = PassengerState.DISEMBARKED
                                 self.exit_corridor[p.x + self.n_seats_left] = 0
                                 p.deboarding_time = (self.t * TIME_STEP_DURATION)
                     else:
                         if self.aisle[p.y - 1] != 0:
-                            p.state = State.MOVE_WAIT
+                            p.state = PassengerState.MOVE_WAIT
                             p.next_action_t = self.t + 1  # Wait until the aisle is free
                         else:
                             p.next_action_t = self.t + WALK_DURATION
@@ -510,7 +426,7 @@ class Simulation:
                             p.y -= 1
                             self.aisle[p.y] = i
 
-                case State.DISEMBARKED:
+                case PassengerState.DISEMBARKED:
                     self.disembarked_pax += 1
                     p.next_action_t = self.t_max
                 case _:
@@ -547,87 +463,3 @@ class Simulation:
                 if (passenger.deboarding_time > passenger.actual_slack_time - GATE_CLOSE_TIME):
                     nb_missed_pax += 1
         return nb_missed_pax
-
-
-def prepare_data_for_simulation(df_arrival_flight, flight_id):
-    nb_pax_carried = \
-        df_arrival_flight[df_arrival_flight["arrival_flight_id"] == flight_id]["actual_passenger_count"].values[0]
-
-    stochastic_load_factor = np.random.uniform(MIN_LOAD_FACTOR, MAX_LOAD_FACTOR)
-    nb_rows = int(np.ceil(nb_pax_carried / (6 * stochastic_load_factor)))
-
-    # print("nb_rows:", nb_rows, "nb_passengers_carried", nb_pax_carried)
-
-    df_connections = pd.read_csv(
-        f"data/{DAY_LABEL}/connecting_passengers_3h_max_connecting_time.csv")  # todo: change in function of day
-    df_connections = flight_schedule.compute_buffer_times(df_connections)
-    crop_df = df_connections[df_connections["arrival_flight_id"] == flight_id]
-    return nb_rows, nb_pax_carried, crop_df
-
-
-def save_results(missed_pax_per_strategy, deboarding_times_per_strategy, filename):
-    df = pd.DataFrame(
-        columns=['Seat Allocation', 'Deboarding Strategy', "Total Missed Pax", "List Missed Pax",
-                 'Average Deboarding Time', "List Deboarding Time"])
-    cpt = 0
-    # print(missed_pax_per_strategy, deboarding_times_per_strategy)
-    for (seat_allocation, deboarding_strategy), missed_pax in missed_pax_per_strategy.items():
-        deboarding_times = deboarding_times_per_strategy[(seat_allocation, deboarding_strategy)]
-        df.loc[cpt] = [seat_allocation, deboarding_strategy, np.sum(missed_pax), missed_pax,
-                       np.mean(deboarding_times), deboarding_times]
-        cpt += 1
-    df.to_csv(filename, index=False)
-
-
-if __name__ == "__main__":
-    start_time = time.time()
-
-    df_arrival_flight = pd.read_csv(
-        f"data/{DAY_LABEL}/df_arrival_flights_3h_max_connecting_time.csv")  # todo: change in function of day
-    flight_ids = df_arrival_flight["arrival_flight_id"].unique()
-
-    list_seat_allocation_strategy = [SeatAllocation.RANDOM, SeatAllocation.CONNECTING_PRIORITY]
-    list_seat_allocation_strategy = [SeatAllocation.CONNECTING_PRIORITY]
-    deboarding_strategy_list = [DeboardingStrategy.COURTESY_RULE, DeboardingStrategy.AISLE_PRIORITY_RULE]
-    deboarding_strategy_list = [DeboardingStrategy.COURTESY_RULE]
-    simulation = Simulation(quiet_mode=True, dummy_rows=2)
-    nb_flights = len(flight_ids)
-    # for i, percentage_prereserved_seats in enumerate(percentage_prereserved_seats_list):
-    for i in range(nb_flights):
-        results_missing_pax = {(seat_allocation.value, deboarding_strategy.value): [] for seat_allocation in
-                               list_seat_allocation_strategy for
-                               deboarding_strategy in deboarding_strategy_list}
-        results_deboarding_times = {(seat_allocation.value, deboarding_strategy.value): [] for seat_allocation in
-                                    list_seat_allocation_strategy for
-                                    deboarding_strategy in deboarding_strategy_list}
-
-        print(f"**************Simulation {i + 1}/{NB_SIMULATION}*****************")
-        for flight_id in flight_ids[:nb_flights]:
-            nb_rows, nb_pax_carried, crop_df = prepare_data_for_simulation(df_arrival_flight, flight_id)
-            missed_pax_per_allocationn, deboarding_time_per_allocation = simulation.run_simulation(nb_rows,
-                                                                                                   nb_pax_carried,
-                                                                                                   crop_df,
-                                                                                                   list_seat_allocation_strategy,
-                                                                                                   deboarding_strategy_list)
-
-            for strategy, missed_pax in missed_pax_per_allocationn.items():
-                results_missing_pax[strategy] += [missed_pax]
-            for strategy, deboarding_time in deboarding_time_per_allocation.items():
-                results_deboarding_times[strategy] += [deboarding_time]
-
-        print("Missed pax: ", results_missing_pax)
-        print("Missed pax per strategy:")
-        for strategy, missed_pax in results_missing_pax.items():
-            avg_missed_pax = np.mean(missed_pax)
-            print(f"Strategy {strategy}: Average missed pax = {avg_missed_pax:.2f}")
-
-        output_filename = f"results/{DAY_LABEL}/results_simulation_{i}.csv"
-        # output_filename = f"results/{DAY_LABEL}/results_simulation_0percent_prereserved_seats.csv"
-        save_results(results_missing_pax, results_deboarding_times, output_filename)
-    end_time = time.time()
-
-    print(f"Total execution time: {end_time - start_time:.2f} seconds")
-    # missing_pax_list = np.array(missing_pax_list)
-    # print(f"Average disembarkation time : {round(np.mean(self.disembarkation_times) / 60, 2)}min")
-    # print(f"Min disembarkation time : {round(np.min(self.disembarkation_times) / 60, 2)}min")
-    # print(f"Max disembarkation time : {round(np.max(self.disembarkation_times) / 60, 2)}min")

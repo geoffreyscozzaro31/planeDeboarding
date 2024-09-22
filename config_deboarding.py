@@ -38,5 +38,10 @@ MAX_PERCENTAGE_PRERESERVED_SEATS = 40 + 5  # add stochasticity to the pre-reserv
 T_MAX_SIMULATION = 10000  # in time steps
 NB_SIMULATION = 10
 
+DUMMY_ROWS = 2
+
 
 GATE_CLOSE_TIME = 20 * 60  # in seconds
+
+# DAY_LABEL = "max_delay_day"
+DAY_LABEL = "max_flight_day"
