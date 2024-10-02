@@ -1,30 +1,31 @@
 simulation_parameters:
-  buffer_time_gate_connecting: 180  # in seconds
-  time_step_duration: 0.5  # in seconds
-  walk_duration: 1  # in time steps
-  stand_up_duration: 1  # in time steps
-  move_seat_duration: 1  # in time steps
-  t_max_simulation: 10000  # in time steps
+  buffer_time_gate_connecting_seconds: 180
+  time_step_duration_seconds: 0.5
+  walk_duration_step: 1
+  stand_up_duration_step: 1
+  move_seat_duration_step: 1
+  t_max_simulation_step: 10000
   nb_simulation: 10
-  gate_close_time: 1200  # in seconds
+  gate_close_time_seconds: 1200
 
   luggage_collection:
     alpha_weibull: 1.7
     beta_weibull: 16.0
-    min_percentage_has_luggage: 85  # in percentage
-    max_percentage_has_luggage: 95  # in percentage
+    min_percentage_has_luggage: 85
+    max_percentage_has_luggage: 95
 
 
 aircraft_configuration:
   nb_seat_left: 3
   nb_seat_right: 3
   nb_rows: 31
+  nb_dummy_rows: 2
 
 passenger_flight_characteristics:
-  min_load_factor: 0.815  # Minimum load factor (86.5% - 5%)
-  max_load_factor: 0.915  # Maximum load factor (86.5% + 5%)
-  min_percentage_prebooked_seats: 35  # Minimum percentage of pre-reserved seats (40% - 5%)
-  max_percentage_prebooked_seats: 45  # Maximum percentage of pre-reserved seats (40% + 5%)
-
+  min_load_factor: 0.815
+  max_load_factor: 0.915
+  min_percentage_prebooked_seats: 35
+  max_percentage_prebooked_seats: 45
+  day_label: "max_flight_day"
 
 

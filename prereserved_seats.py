@@ -1,9 +1,6 @@
-import logging
+import random
 
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
-import random
 
 
 def generate_probability_matrix(nb_rows, nb_columns):
@@ -32,7 +29,8 @@ def assign_seats(nb_passengers_prereserved, total_passengers, probability_matrix
 
     normalized_probs = [p / sum(flat_probs) for p in flat_probs]
 
-    assigned_indices_prereserved = random.sample([i for i in flat_indices if normalized_probs[i] > 0], nb_passengers_prereserved)
+    assigned_indices_prereserved = random.sample([i for i in flat_indices if normalized_probs[i] > 0],
+                                                 nb_passengers_prereserved)
 
     prereserved_seats = [(i // nb_columns, i % nb_columns) for i in assigned_indices_prereserved]
 
@@ -48,8 +46,3 @@ def check_for_duplicates(seats):
     """Check for duplicate seats and raise ValueError if duplicates are found."""
     if len(seats) != len(set(seats)):
         raise ValueError("Duplicate seats found !!")
-
-
-
-
-

@@ -1,11 +1,16 @@
-import numpy as np
 import os
 
 import deboarding_simulation
-from config_deboarding import *
+
 
 OUTPUT_DIR = 'results/medias/deboarding/'
 
+from model.deboarding_strategy import DeboardingStrategy
+from model.seat_allocation import SeatAllocation
+from deboarding_simulation import DeboardingSimulation
+import pandas as pd
+
+NB_ROWS = deboarding_simulation.configuration.nb_rows
 
 def measure_deboarding_time(simulation, disembarking_rule_name, n=10):
     for passengers_proportion in [0.8, 0.9, 1.0]:
@@ -26,7 +31,7 @@ def measure_deboarding_time(simulation, disembarking_rule_name, n=10):
             print("file written !..")
 
 
-def save_deboarding_orders(simulation,disembarking_rule_name):
+def save_deboarding_orders(simulation, disembarking_rule_name):
     for seat_allocation in [SeatAllocation.RANDOM]:
         simulation.set_seat_allocation_strategy(seat_allocation)
         simulation.reset()
@@ -42,13 +47,6 @@ def save_deboarding_orders(simulation,disembarking_rule_name):
                 row = list(simulation.deboarding_order_left[i, :][::-1]) + [-1] + list(
                     simulation.deboarding_order_right[i, :])
                 file.write(' '.join(map(str, row)) + '\n')
-
-
-from model.deboarding_strategy import DeboardingStrategy
-from model.seat_allocation import SeatAllocation
-from deboarding_simulation import DeboardingSimulation
-from airport_simulation import prepare_data_for_simulation
-import pandas as pd
 
 
 def main():

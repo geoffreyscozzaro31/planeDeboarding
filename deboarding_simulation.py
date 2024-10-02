@@ -6,17 +6,22 @@ import logging
 from collections import defaultdict
 from typing import List
 
+import numpy as np
+
 import prereserved_seats
-from config_deboarding import *
 from model.deboarding_strategy import DeboardingStrategy
 from model.passenger import Passenger
 from model.passenger_state import PassengerState
 from model.seat_allocation import SeatAllocation
+from utils import configloader
+
+
+configuration = configloader.ConfigLoader("configuration_deboarding.yaml")
 
 
 class DeboardingSimulation:
     def __init__(self, quiet_mode=True):
-        self.dummy_rows = DUMMY_ROWS  # Add fictive rows  to model empty space at the top of the aircraft
+        self.dummy_rows = configuration.nb_dummy_rows  # Add fictive rows  to model empty space at the top of the aircraft
         self.nb_rows = -1
         self.n_fictive_rows = -1  # depends on the number of rows and the dummy rows and cell size
         self.n_seats_left = -1
@@ -30,7 +35,7 @@ class DeboardingSimulation:
         self.deboarding_strategy = None
         self.quiet_mode = quiet_mode
         self.reset_stats()
-        self.t_max = T_MAX_SIMULATION
+        self.t_max = configuration.t_max_simulation
         self.disembarked_pax = 0
         self.actual_connecting_time_pax_list = []
         self.scheduled_connecting_time_pax_list = []
@@ -43,7 +48,8 @@ class DeboardingSimulation:
 
     def prepare_simulation(self, nb_rows, nb_pax_carried, connecting_pax_df, percentage_prereserved_seats=-1,
                            activate_connecting_pax=True):
-        self.set_custom_aircraft(n_rows=nb_rows, n_seats_left=NB_SEAT_LEFT, n_seats_right=NB_SEAT_RIGHT)
+        self.set_custom_aircraft(n_rows=nb_rows, n_seats_left=configuration.nb_seat_left,
+                                 n_seats_right=configuration.nb_seat_right)
         self.set_number_passengers(nb_pax_carried)
 
         self.set_connecting_time_pax(connecting_pax_df, nb_pax_carried)
@@ -153,22 +159,23 @@ class DeboardingSimulation:
     def fill_aircraft(self):
         for i, passenger in enumerate(self.passengers[1:]):
             if (passenger.seat < 0):
-                self.side_left[passenger.seat_row][NB_SEAT_LEFT + passenger.seat] = i + 1
+                self.side_left[passenger.seat_row][configuration.nb_seat_left + passenger.seat] = i + 1
             else:
                 self.side_right[passenger.seat_row][passenger.seat - 1] = i + 1
 
     def set_passengers_having_luggage(self):
-        stochastic_percentage_has_luggage = np.random.uniform(MIN_PERCENTAGE_HAS_LUGGAGE, MAX_PERCENTAGE_HAS_LUGGAGE)
+        stochastic_percentage_has_luggage = np.random.uniform(configuration.min_percentage_has_luggage,
+                                                              configuration.max_percentage_has_luggage)
         self.passenger_has_luggage_list = np.random.rand(self.n_passengers) < stochastic_percentage_has_luggage / 100
 
     def set_probability_matrix_prereserved_seats(self):
         self.probability_matrix_prereserved_seats = prereserved_seats.generate_probability_matrix(self.nb_rows,
-                                                                                                  NB_SEAT_LEFT + NB_SEAT_RIGHT)
+                                                                                                  configuration.nb_seat_left + configuration.nb_seat_right)
 
     def set_passengers_with_prereserved_seats(self, percentage_prereserved_seats=-1):
         if percentage_prereserved_seats == -1:
-            stochastic_percentage_prereserved_seats = np.random.uniform(MIN_PERCENTAGE_PRERESERVED_SEATS,
-                                                                        MAX_PERCENTAGE_PRERESERVED_SEATS)
+            stochastic_percentage_prereserved_seats = np.random.uniform(configuration.min_percentage_prereserved_seats,
+                                                                        configuration.max_percentage_prereserved_seats)
             self.passenger_has_pre_reserved_seat_list = np.random.rand(
                 self.n_passengers) < stochastic_percentage_prereserved_seats / 100
         else:
@@ -196,9 +203,9 @@ class DeboardingSimulation:
         for i, seat in enumerate(self.passengers_seat_allocation_list):
             seat_row = (self.dummy_rows + seat[0]) * 2
             if (seat[1] < 3):
-                seat_column = seat[1] - NB_SEAT_LEFT
+                seat_column = seat[1] - configuration.nb_seat_left
             else:
-                seat_column = seat[1] - NB_SEAT_LEFT + 1
+                seat_column = seat[1] - configuration.nb_seat_left + 1
             self.passengers.append(Passenger(seat_row=seat_row, seat=seat_column,
                                              has_luggage=self.passenger_has_luggage_list[i],
                                              has_pre_reserved_seat=self.passenger_has_pre_reserved_seat_list[i]))
@@ -289,7 +296,7 @@ class DeboardingSimulation:
             if not self.quiet_mode:
                 self.print()
             self.t += 1
-        disembarkation_time = self.t * TIME_STEP_DURATION
+        disembarkation_time = self.t * configuration.time_step_duration
         print(f"Total minutes to disembark all pax: {round(disembarkation_time / 60, 2)}minutes")
         self.disembarkation_time = disembarkation_time
 
@@ -338,20 +345,20 @@ class DeboardingSimulation:
                     p.x -= 1
                     self.exit_corridor[p.x + self.n_seats_left] = i
             else:
-                if self.t < BUFFER_TIME_GATE_CONNECTING / TIME_STEP_DURATION:
+                if self.t < configuration.buffer_time_gate_connecting / configuration.time_step_duration:
                     p.state = PassengerState.MOVE_WAIT
-                    p.next_action_t = BUFFER_TIME_GATE_CONNECTING / TIME_STEP_DURATION  # Wait until the next corridor position is free
+                    p.next_action_t = configuration.buffer_time_gate_connecting / configuration.time_step_duration  # Wait until the next corridor position is free
 
                 else:
                     p.state = PassengerState.DISEMBARKED
                     self.exit_corridor[p.x + self.n_seats_left] = 0
-                    p.deboarding_time = (self.t * TIME_STEP_DURATION)
+                    p.deboarding_time = (self.t * configuration.time_step_duration)
         else:
             if self.aisle[p.y - 1] != 0:
                 p.state = PassengerState.MOVE_WAIT
                 p.next_action_t = self.t + 1  # Wait until the aisle is free
             else:
-                p.next_action_t = self.t + WALK_DURATION
+                p.next_action_t = self.t + configuration.walk_duration
                 self.aisle[p.y] = 0
                 p.y -= 1
                 self.aisle[p.y] = i
@@ -361,7 +368,7 @@ class DeboardingSimulation:
             if self.exit_corridor[p.x + self.n_seats_left - 1] != 0:
                 p.next_action_t = self.t + 1  # Wait until the corridor is free
             else:
-                p.next_action_t = self.t + WALK_DURATION
+                p.next_action_t = self.t + configuration.walk_duration
                 p.state = PassengerState.MOVE_FROM_ROW
                 if p.x == 0:
                     self.aisle[p.y] = 0
@@ -373,7 +380,7 @@ class DeboardingSimulation:
             if self.aisle[p.y - 1] != 0:
                 p.next_action_t = self.t + 1  # Wait until the aisle is free
             else:
-                p.next_action_t = self.t + WALK_DURATION
+                p.next_action_t = self.t + configuration.walk_duration
                 p.state = PassengerState.MOVE_FROM_ROW
                 self.aisle[p.y] = 0
                 p.y -= 1
@@ -391,7 +398,7 @@ class DeboardingSimulation:
             p.next_action_t = self.t + 1
         else:
             # We can go!
-            p.next_action_t = self.t + WALK_DURATION
+            p.next_action_t = self.t + configuration.walk_duration
             p.state = PassengerState.MOVE_FROM_ROW
             self.aisle[p.y] = 0
             p.y -= 1
@@ -410,7 +417,7 @@ class DeboardingSimulation:
                         p.x = 0
                         self.aisle[p.y] = i
                         p.state = PassengerState.STAND_UP_FROM_SEAT
-                        p.next_action_t = self.t + STAND_UP_DURATION
+                        p.next_action_t = self.t + configuration.stand_up_duration
                     else:
                         p.next_action_t = self.t + 1
             else:
@@ -418,21 +425,21 @@ class DeboardingSimulation:
         if p.x == -1:
             if self.aisle[p.y] == 0:
                 if is_courtesy_rule or (p.y + 1 == len(self.aisle)) or (self.aisle[p.y + 1] == 0):
-                    self.side_left[p.y][NB_SEAT_LEFT - 1] = 0
+                    self.side_left[p.y][configuration.nb_seat_left - 1] = 0
                     p.x = 0
                     self.aisle[p.y] = i
                     p.state = PassengerState.STAND_UP_FROM_SEAT
-                    p.next_action_t = self.t + STAND_UP_DURATION
+                    p.next_action_t = self.t + configuration.stand_up_duration
                 else:
                     p.next_action_t = self.t + 1
             else:
                 p.next_action_t = self.t + 1
         elif p.x < -1:
-            if self.side_left[p.seat_row][NB_SEAT_LEFT + p.x + 1] == 0:
-                self.side_left[p.seat_row][NB_SEAT_LEFT + p.x] = 0
+            if self.side_left[p.seat_row][configuration.nb_seat_left + p.x + 1] == 0:
+                self.side_left[p.seat_row][configuration.nb_seat_left + p.x] = 0
                 p.x += 1
-                self.side_left[p.seat_row][NB_SEAT_LEFT + p.x] = i
-                p.next_action_t = self.t + MOVE_SEAT_DURATION
+                self.side_left[p.seat_row][configuration.nb_seat_left + p.x] = i
+                p.next_action_t = self.t + configuration.move_seat_duration
             else:
                 p.next_action_t = self.t + 1
         elif p.x > 1:
@@ -440,7 +447,7 @@ class DeboardingSimulation:
                 self.side_right[p.seat_row][p.x - 1] = 0
                 p.x -= 1
                 self.side_right[p.seat_row][p.x - 1] = i
-                p.next_action_t = self.t + MOVE_SEAT_DURATION
+                p.next_action_t = self.t + configuration.move_seat_duration
             else:
                 p.next_action_t = self.t + 1
 
@@ -469,6 +476,6 @@ class DeboardingSimulation:
             if passenger.deboarding_time < 0:
                 logging.warning(f"Error when computing deboarding time of passenger {i}")
             else:
-                if (passenger.deboarding_time > passenger.actual_slack_time - GATE_CLOSE_TIME):
+                if (passenger.deboarding_time > passenger.actual_slack_time - configuration.gate_close_time):
                     nb_missed_pax += 1
         return nb_missed_pax

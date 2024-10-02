@@ -4,16 +4,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from config_deboarding import GATE_CLOSE_TIME
-
 import matplotlib.colors as mcolors
 
+from utils import configloader
 import prereserved_seats
 
 # DAY_LABEL = "max_delay_day"
 DAY_LABEL = "max_flight_day"
 
 RESULT_FOLDER = f"{DAY_LABEL}/10_simulations_20_pct_prereserved_3h_connecting_time/"
+
+config_file_path = os.path.join(os.path.dirname(os.getcwd()), "configuration_deboarding.yaml")
+configuration = configloader.ConfigLoader(config_file_path)
+GATE_CLOSE_TIME = configuration.gate_close_time
 
 
 def get_all_files_in_folder(folder_path):
@@ -45,7 +48,7 @@ def display_missed_pax_strategies(savefig=False):
         print(key, np.mean(y_missed_pax[key]))
 
     ax.boxplot(y_missed_pax.values(), patch_artist=True,
-               boxprops=dict(facecolor='lightblue', color='darkblue',linewidth=1.5),
+               boxprops=dict(facecolor='lightblue', color='darkblue', linewidth=1.5),
                medianprops=dict(color='red', linewidth=1.5),
                whiskerprops=dict(color='black', linewidth=1.5),
                capprops=dict(color='black', linewidth=1.5))
@@ -58,7 +61,8 @@ def display_missed_pax_strategies(savefig=False):
     ax.grid(True, linestyle='--', alpha=0.6)
 
     if savefig:
-        plt.savefig(f"medias/boxplot/{DAY_LABEL}_missed_pax_{int(GATE_CLOSE_TIME/60)}min_gate_closure.png", bbox_inches='tight')
+        plt.savefig(f"medias/boxplot/{DAY_LABEL}_missed_pax_{int(GATE_CLOSE_TIME / 60)}min_gate_closure.png",
+                    bbox_inches='tight')
     else:
         plt.show()
 
@@ -94,10 +98,10 @@ def display_boxplot_deboarding_time(savefig=False):
     ax.grid(True, linestyle='--', alpha=0.6)
 
     if savefig:
-        plt.savefig(f"medias/boxplot/{DAY_LABEL}_deboarding_time_{int(GATE_CLOSE_TIME/60)}min_gate_closure.png", bbox_inches='tight')
+        plt.savefig(f"medias/boxplot/{DAY_LABEL}_deboarding_time_{int(GATE_CLOSE_TIME / 60)}min_gate_closure.png",
+                    bbox_inches='tight')
     else:
         plt.show()
-
 
 
 def display_deboarding_time_bar(savefig=False):
@@ -131,7 +135,8 @@ def display_deboarding_time_bar(savefig=False):
     plt.tight_layout()
 
     if savefig:
-        plt.savefig(f"medias/barplot/{DAY_LABEL}_deboarding_time_{int(GATE_CLOSE_TIME/60)}min_gate_closure.png", bbox_inches='tight')
+        plt.savefig(f"medias/barplot/{DAY_LABEL}_deboarding_time_{int(GATE_CLOSE_TIME / 60)}min_gate_closure.png",
+                    bbox_inches='tight')
     else:
         plt.show()
 
@@ -141,14 +146,11 @@ def display_bar_plot_missed_pax_prereserved_seats(folder_path, savefig=False):
     y_missed_pax = {}
 
     # Extracting the deboarding time data
-    for i,csv_file in enumerate(files):
-
+    for i, csv_file in enumerate(files):
         percentage = int(csv_file.split("_")[2][:-7])
         df = pd.read_csv(folder_path + csv_file)
         print(percentage)
         y_missed_pax[percentage] = df['Total Missed Pax'].values[0]
-
-
 
     # Plotting the improved bar plot
     fig, ax = plt.subplots(figsize=(14, 7))
@@ -156,11 +158,7 @@ def display_bar_plot_missed_pax_prereserved_seats(folder_path, savefig=False):
     print(y_missed_pax)
 
     # Using a gradient color for the bars
-    ax.bar(y_missed_pax.keys(), y_missed_pax.values(), width = 15, color="darkcyan")
-
-
-
-
+    ax.bar(y_missed_pax.keys(), y_missed_pax.values(), width=15, color="darkcyan")
 
     xticks = [0, 20, 40, 60, 80, 100]
     ax.set_xticks(xticks)
@@ -177,9 +175,8 @@ def display_bar_plot_missed_pax_prereserved_seats(folder_path, savefig=False):
         plt.show()
 
 
-
-def display_prereserved_seat_probability( nb_rows=20, nb_cols = 6, savefig=False):
-    nb_cols +=1 # to account for the aisle
+def display_prereserved_seat_probability(nb_rows=20, nb_cols=6, savefig=False):
+    nb_cols += 1  # to account for the aisle
     grid = prereserved_seats.generate_probability_matrix(nb_rows, nb_cols)
 
     grid = grid / np.sum(grid) * 100

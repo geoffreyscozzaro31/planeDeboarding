@@ -6,12 +6,13 @@ from matplotlib.animation import FuncAnimation
 from matplotlib.colors import ListedColormap
 from scipy.interpolate import interp1d
 
-from config_deboarding import *
 
 FOLDER_DATA = "results/medias/deboarding/"
 
 # DISEMBARKING_RULE_NAME = "aisle_priority_deboarding_rule"
 DISEMBARKING_RULE_NAME = "courtesy_deboarding_rule"
+NB_ROWS = 31
+TIME_STEP_DURATION = 0.5
 FILE_PATH = FOLDER_DATA + f"{DISEMBARKING_RULE_NAME}_{NB_ROWS}rows_history.txt"
 
 NB_STEPS = 2
@@ -165,4 +166,4 @@ def generate_animation(save_animation=False):
 
 
 if __name__ == "__main__":
-    generate_animation(save_animation=True)
+    generate_animation(save_animation=False)
