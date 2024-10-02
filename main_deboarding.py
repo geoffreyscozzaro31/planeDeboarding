@@ -4,7 +4,7 @@ import os
 import deboarding_simulation
 from config_deboarding import *
 
-OUTPUT_DIR = 'medias/deboarding/'
+OUTPUT_DIR = 'results/medias/deboarding/'
 
 
 def measure_deboarding_time(simulation, disembarking_rule_name, n=10):

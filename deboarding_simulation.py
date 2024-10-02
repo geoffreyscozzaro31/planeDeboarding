@@ -177,7 +177,7 @@ class DeboardingSimulation:
         self.nb_prereserved_seats = np.sum(self.passenger_has_pre_reserved_seat_list)
 
     def set_passenger_seat_allocation(self):
-        prereserved_seats_pax_allocation, other_seats = prereserved_seats.assign_prereserved_seats(
+        prereserved_seats_pax_allocation, other_seats = prereserved_seats.assign_seats(
             self.nb_prereserved_seats, self.n_passengers, self.probability_matrix_prereserved_seats)
 
         prereserved_index = 0
@@ -251,7 +251,6 @@ class DeboardingSimulation:
         if not self.quiet_mode:
             print(*args)
 
-    # Run multiple simulations
     def run_simulation(self, nb_rows, nb_pax_carried, connecting_pax_df, seat_allocation_strategy_list,
                        deboarding_strategy_list,
                        percentage_prereserved_seats=-1, quiet_mode=True):
@@ -294,8 +293,13 @@ class DeboardingSimulation:
         print(f"Total minutes to disembark all pax: {round(disembarkation_time / 60, 2)}minutes")
         self.disembarkation_time = disembarkation_time
 
-    def step(self):
-
+    def step(self) -> str:
+        """
+        Executes a single step in the deboarding simulation.
+        This method iterates over all passengers and updates their state based on the current simulation time.
+        Returns:
+            str: A boolean indicating whether all passengers have disembarked.
+        """
         for i, p in enumerate(self.passengers):
             if i == 0: continue
 
@@ -304,136 +308,141 @@ class DeboardingSimulation:
 
             if p.next_action_t > self.t:
                 continue
-
             match p.state:
                 case PassengerState.SEATED:
-                    random_left_right = np.random.randint(0, 2)
-                    is_courtesy_rule = self.deboarding_strategy == DeboardingStrategy.COURTESY_RULE
-                    if p.x == 1:
-                        if self.aisle[p.y] == 0:
-                            if self.side_left[p.y][2] != 0 and (random_left_right > 0):
-                                p.next_action_t = self.t + 1
-                            else:
-                                if is_courtesy_rule or (p.y + 1 == len(self.aisle)) or (self.aisle[p.y + 1] == 0):
-                                    self.side_right[p.y][0] = 0
-                                    p.x = 0
-                                    self.aisle[p.y] = i
-                                    p.state = PassengerState.STAND_UP_FROM_SEAT
-                                    p.next_action_t = self.t + STAND_UP_DURATION
-                                else:
-                                    p.next_action_t = self.t + 1
-                        else:
-                            p.next_action_t = self.t + 1
-                    if p.x == -1:
-                        if self.aisle[p.y] == 0:
-                            if is_courtesy_rule or (p.y + 1 == len(self.aisle)) or (self.aisle[p.y + 1] == 0):
-                                self.side_left[p.y][NB_SEAT_LEFT - 1] = 0
-                                p.x = 0
-                                self.aisle[p.y] = i
-                                p.state = PassengerState.STAND_UP_FROM_SEAT
-                                p.next_action_t = self.t + STAND_UP_DURATION
-                            else:
-                                p.next_action_t = self.t + 1
-                        else:
-                            p.next_action_t = self.t + 1
-                    elif p.x < -1:
-                        if self.side_left[p.seat_row][NB_SEAT_LEFT + p.x + 1] == 0:
-                            self.side_left[p.seat_row][NB_SEAT_LEFT + p.x] = 0
-                            p.x += 1
-                            self.side_left[p.seat_row][NB_SEAT_LEFT + p.x] = i
-                            p.next_action_t = self.t + MOVE_SEAT_DURATION
-                        else:
-                            p.next_action_t = self.t + 1
-                    elif p.x > 1:
-                        if self.side_right[p.seat_row][p.x - 2] == 0:
-                            self.side_right[p.seat_row][p.x - 1] = 0
-                            p.x -= 1
-                            self.side_right[p.seat_row][p.x - 1] = i
-                            p.next_action_t = self.t + MOVE_SEAT_DURATION
-                        else:
-                            p.next_action_t = self.t + 1
-
+                    self.move_seated_passsenger(i, p)
                 case PassengerState.STAND_UP_FROM_SEAT:
-                    if p.has_luggage:
-                        p.state = PassengerState.MOVE_WAIT
-                        p.next_action_t = self.t + p.collecting_luggage_time
-                        ind = 0 if p.seat < 0 else 1
-                        self.luggage_bin[p.seat_row][ind] += 1
-                        self.history_luggage.append([self.t, p.seat_row, ind])
-                    elif self.aisle[p.y - 1] != 0:
-                        p.state = PassengerState.MOVE_WAIT
-                        p.next_action_t = self.t + 1
-                    else:
-                        # We can go!
-                        p.next_action_t = self.t + WALK_DURATION
-                        p.state = PassengerState.MOVE_FROM_ROW
-                        self.aisle[p.y] = 0
-                        p.y -= 1
-                        self.aisle[p.y] = i
-
+                    self.move_stand_up_passenger(i, p)
                 case PassengerState.MOVE_WAIT:
-                    if p.y == 0:
-                        if self.exit_corridor[p.x + self.n_seats_left - 1] != 0:
-                            p.next_action_t = self.t + 1  # Wait until the corridor is free
-                        else:
-                            p.next_action_t = self.t + WALK_DURATION
-                            p.state = PassengerState.MOVE_FROM_ROW
-                            if p.x == 0:
-                                self.aisle[p.y] = 0
-                            else:
-                                self.exit_corridor[p.x + self.n_seats_left] = 0
-                            p.x -= 1
-                            self.exit_corridor[p.x + self.n_seats_left] = i
-                    else:
-                        if self.aisle[p.y - 1] != 0:
-                            p.next_action_t = self.t + 1  # Wait until the aisle is free
-                        else:
-                            p.next_action_t = self.t + WALK_DURATION
-                            p.state = PassengerState.MOVE_FROM_ROW
-                            self.aisle[p.y] = 0
-                            p.y -= 1
-                            self.aisle[p.y] = i
-
+                    self.move_waiting_passenger(i, p)
                 case PassengerState.MOVE_FROM_ROW:
-                    if p.y == 0:
-                        if p.x > -2:
-                            if self.exit_corridor[p.x + self.n_seats_left - 1] != 0:
-                                p.state = PassengerState.MOVE_WAIT
-                                p.next_action_t = self.t + 1  # Wait until the next corridor position is free
-                            else:
-                                if p.x == 0:
-                                    self.aisle[p.y] = 0
-                                else:
-                                    self.exit_corridor[p.x + self.n_seats_left] = 0
-                                p.x -= 1
-                                self.exit_corridor[p.x + self.n_seats_left] = i
-                        else:
-                            if self.t < BUFFER_TIME_GATE_CONNECTING / TIME_STEP_DURATION:
-                                p.state = PassengerState.MOVE_WAIT
-                                p.next_action_t = BUFFER_TIME_GATE_CONNECTING / TIME_STEP_DURATION  # Wait until the next corridor position is free
-
-                            else:
-                                p.state = PassengerState.DISEMBARKED
-                                self.exit_corridor[p.x + self.n_seats_left] = 0
-                                p.deboarding_time = (self.t * TIME_STEP_DURATION)
-                    else:
-                        if self.aisle[p.y - 1] != 0:
-                            p.state = PassengerState.MOVE_WAIT
-                            p.next_action_t = self.t + 1  # Wait until the aisle is free
-                        else:
-                            p.next_action_t = self.t + WALK_DURATION
-                            self.aisle[p.y] = 0
-                            p.y -= 1
-                            self.aisle[p.y] = i
-
+                    self.move_passenger_in_row(i, p)
                 case PassengerState.DISEMBARKED:
                     self.disembarked_pax += 1
                     p.next_action_t = self.t_max
                 case _:
                     self.print_info(f'State {p.state} is not handled.')
-
-        # Check whether everyone is already deboarded
         return self.disembarked_pax == self.n_passengers
+
+    def move_passenger_in_row(self, i, p):
+        if p.y == 0:
+            if p.x > -2:
+                if self.exit_corridor[p.x + self.n_seats_left - 1] != 0:
+                    p.state = PassengerState.MOVE_WAIT
+                    p.next_action_t = self.t + 1  # Wait until the next corridor position is free
+                else:
+                    if p.x == 0:
+                        self.aisle[p.y] = 0
+                    else:
+                        self.exit_corridor[p.x + self.n_seats_left] = 0
+                    p.x -= 1
+                    self.exit_corridor[p.x + self.n_seats_left] = i
+            else:
+                if self.t < BUFFER_TIME_GATE_CONNECTING / TIME_STEP_DURATION:
+                    p.state = PassengerState.MOVE_WAIT
+                    p.next_action_t = BUFFER_TIME_GATE_CONNECTING / TIME_STEP_DURATION  # Wait until the next corridor position is free
+
+                else:
+                    p.state = PassengerState.DISEMBARKED
+                    self.exit_corridor[p.x + self.n_seats_left] = 0
+                    p.deboarding_time = (self.t * TIME_STEP_DURATION)
+        else:
+            if self.aisle[p.y - 1] != 0:
+                p.state = PassengerState.MOVE_WAIT
+                p.next_action_t = self.t + 1  # Wait until the aisle is free
+            else:
+                p.next_action_t = self.t + WALK_DURATION
+                self.aisle[p.y] = 0
+                p.y -= 1
+                self.aisle[p.y] = i
+
+    def move_waiting_passenger(self, i, p):
+        if p.y == 0:
+            if self.exit_corridor[p.x + self.n_seats_left - 1] != 0:
+                p.next_action_t = self.t + 1  # Wait until the corridor is free
+            else:
+                p.next_action_t = self.t + WALK_DURATION
+                p.state = PassengerState.MOVE_FROM_ROW
+                if p.x == 0:
+                    self.aisle[p.y] = 0
+                else:
+                    self.exit_corridor[p.x + self.n_seats_left] = 0
+                p.x -= 1
+                self.exit_corridor[p.x + self.n_seats_left] = i
+        else:
+            if self.aisle[p.y - 1] != 0:
+                p.next_action_t = self.t + 1  # Wait until the aisle is free
+            else:
+                p.next_action_t = self.t + WALK_DURATION
+                p.state = PassengerState.MOVE_FROM_ROW
+                self.aisle[p.y] = 0
+                p.y -= 1
+                self.aisle[p.y] = i
+
+    def move_stand_up_passenger(self, i, p):
+        if p.has_luggage:
+            p.state = PassengerState.MOVE_WAIT
+            p.next_action_t = self.t + p.collecting_luggage_time
+            ind = 0 if p.seat < 0 else 1
+            self.luggage_bin[p.seat_row][ind] += 1
+            self.history_luggage.append([self.t, p.seat_row, ind])
+        elif self.aisle[p.y - 1] != 0:
+            p.state = PassengerState.MOVE_WAIT
+            p.next_action_t = self.t + 1
+        else:
+            # We can go!
+            p.next_action_t = self.t + WALK_DURATION
+            p.state = PassengerState.MOVE_FROM_ROW
+            self.aisle[p.y] = 0
+            p.y -= 1
+            self.aisle[p.y] = i
+
+    def move_seated_passsenger(self, i, p):
+        random_left_right = np.random.randint(0, 2)
+        is_courtesy_rule = self.deboarding_strategy == DeboardingStrategy.COURTESY_RULE
+        if p.x == 1:
+            if self.aisle[p.y] == 0:
+                if self.side_left[p.y][2] != 0 and (random_left_right > 0):
+                    p.next_action_t = self.t + 1
+                else:
+                    if is_courtesy_rule or (p.y + 1 == len(self.aisle)) or (self.aisle[p.y + 1] == 0):
+                        self.side_right[p.y][0] = 0
+                        p.x = 0
+                        self.aisle[p.y] = i
+                        p.state = PassengerState.STAND_UP_FROM_SEAT
+                        p.next_action_t = self.t + STAND_UP_DURATION
+                    else:
+                        p.next_action_t = self.t + 1
+            else:
+                p.next_action_t = self.t + 1
+        if p.x == -1:
+            if self.aisle[p.y] == 0:
+                if is_courtesy_rule or (p.y + 1 == len(self.aisle)) or (self.aisle[p.y + 1] == 0):
+                    self.side_left[p.y][NB_SEAT_LEFT - 1] = 0
+                    p.x = 0
+                    self.aisle[p.y] = i
+                    p.state = PassengerState.STAND_UP_FROM_SEAT
+                    p.next_action_t = self.t + STAND_UP_DURATION
+                else:
+                    p.next_action_t = self.t + 1
+            else:
+                p.next_action_t = self.t + 1
+        elif p.x < -1:
+            if self.side_left[p.seat_row][NB_SEAT_LEFT + p.x + 1] == 0:
+                self.side_left[p.seat_row][NB_SEAT_LEFT + p.x] = 0
+                p.x += 1
+                self.side_left[p.seat_row][NB_SEAT_LEFT + p.x] = i
+                p.next_action_t = self.t + MOVE_SEAT_DURATION
+            else:
+                p.next_action_t = self.t + 1
+        elif p.x > 1:
+            if self.side_right[p.seat_row][p.x - 2] == 0:
+                self.side_right[p.seat_row][p.x - 1] = 0
+                p.x -= 1
+                self.side_right[p.seat_row][p.x - 1] = i
+                p.next_action_t = self.t + MOVE_SEAT_DURATION
+            else:
+                p.next_action_t = self.t + 1
 
     def serialize_history(self, path):
         with open(path, 'w') as f:

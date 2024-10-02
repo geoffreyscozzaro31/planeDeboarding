@@ -6,10 +6,14 @@ import pandas as pd
 
 from config_deboarding import GATE_CLOSE_TIME
 
+import matplotlib.colors as mcolors
+
+import prereserved_seats
+
 # DAY_LABEL = "max_delay_day"
 DAY_LABEL = "max_flight_day"
 
-RESULT_FOLDER = f"results/{DAY_LABEL}/10_simulations_20_pct_prereserved_3h_connecting_time/"
+RESULT_FOLDER = f"{DAY_LABEL}/10_simulations_20_pct_prereserved_3h_connecting_time/"
 
 
 def get_all_files_in_folder(folder_path):
@@ -174,10 +178,58 @@ def display_bar_plot_missed_pax_prereserved_seats(folder_path, savefig=False):
 
 
 
+def display_prereserved_seat_probability( nb_rows=20, nb_cols = 6, savefig=False):
+    nb_cols +=1 # to account for the aisle
+    grid = prereserved_seats.generate_probability_matrix(nb_rows, nb_cols)
+
+    grid = grid / np.sum(grid) * 100
+    grid = np.transpose(grid)
+
+    vmax = int(np.ceil(np.max(grid)))
+    cmap = plt.get_cmap('Reds')
+    norm = mcolors.Normalize(vmin=0, vmax=vmax)
+
+    fig, ax = plt.subplots(figsize=(20, 6))
+    cax = ax.matshow(grid, cmap=cmap, norm=norm)
+
+    ft = 14
+
+    cbar = plt.colorbar(cax, ax=ax, orientation='horizontal')
+    cbar.set_label('Selection Probability (%)', fontsize=ft)
+
+    xticks = [i for i in range(vmax + 1)]
+    cbar.set_ticks(xticks)
+    cbar.set_ticklabels([f"{x}%" for x in xticks], fontsize=ft)
+    cbar.ax.invert_yaxis()  # Highest probability at the top
+
+    ax.set_yticks(np.arange(-0.5, nb_cols, 1), minor=True)
+    ax.set_xticks(np.arange(-0.5, nb_rows, 1), minor=True)
+    ax.grid(which="minor", color="k", linestyle='-', linewidth=2)
+    ax.tick_params(which="minor", size=0)
+
+    ax.set_yticks(np.arange(nb_cols))
+    ax.set_yticklabels(['Window-side', 'Middle', 'Aisle-side', '', 'Aisle-side', 'Middle', 'Window-side'], fontsize=ft)
+    ax.set_xticks(np.arange(nb_rows))
+    ax.set_xticklabels(np.arange(1, nb_rows + 1), fontsize=11)
+    ax.xaxis.set_ticks_position('bottom')
+
+    for r in range(nb_rows):
+        for c in range(nb_cols):
+            if grid[c, r] > 0:
+                ax.text(r, c, f'{grid[c, r]:.1f}%', ha='center', va='center', color='black', fontsize=11)
+
+    plt.xlabel('Row number', fontsize=ft)
+    if savefig:
+        plt.savefig('medias/prereserved_seat_probability_distribution.png', bbox_inches="tight")
+    else:
+        plt.show()
+
+
 if __name__ == '__main__':
-    display_missed_pax_strategies(savefig=True)
-    display_boxplot_deboarding_time(savefig=True)
+    display_missed_pax_strategies(savefig=False)
+    display_boxplot_deboarding_time(savefig=False)
     display_deboarding_time_bar(savefig=False)
     # display_deboarding_time_line()
-    folder_result = "results/max_flight_day/simulations_evolution_percentage_prereserved_seats/"
+    folder_result = "max_flight_day/simulations_evolution_percentage_prereserved_seats/"
     display_bar_plot_missed_pax_prereserved_seats(folder_result, savefig=False)
+    display_prereserved_seat_probability(savefig=False)

@@ -8,7 +8,7 @@ from scipy.interpolate import interp1d
 
 from config_deboarding import *
 
-FOLDER_DATA = "medias/deboarding/"
+FOLDER_DATA = "results/medias/deboarding/"
 
 # DISEMBARKING_RULE_NAME = "aisle_priority_deboarding_rule"
 DISEMBARKING_RULE_NAME = "courtesy_deboarding_rule"
