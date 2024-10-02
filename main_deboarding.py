@@ -3,7 +3,7 @@ import os
 import deboarding_simulation
 
 
-OUTPUT_DIR = 'results/medias/deboarding/'
+OUTPUT_DIR = 'medias/deboarding/'
 
 from model.deboarding_strategy import DeboardingStrategy
 from model.seat_allocation import SeatAllocation

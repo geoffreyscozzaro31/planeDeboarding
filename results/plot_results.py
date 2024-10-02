@@ -61,7 +61,7 @@ def display_missed_pax_strategies(savefig=False):
     ax.grid(True, linestyle='--', alpha=0.6)
 
     if savefig:
-        plt.savefig(f"medias/boxplot/{DAY_LABEL}_missed_pax_{int(GATE_CLOSE_TIME / 60)}min_gate_closure.png",
+        plt.savefig(f"../medias/boxplot/{DAY_LABEL}_missed_pax_{int(GATE_CLOSE_TIME / 60)}min_gate_closure.png",
                     bbox_inches='tight')
     else:
         plt.show()
@@ -98,7 +98,7 @@ def display_boxplot_deboarding_time(savefig=False):
     ax.grid(True, linestyle='--', alpha=0.6)
 
     if savefig:
-        plt.savefig(f"medias/boxplot/{DAY_LABEL}_deboarding_time_{int(GATE_CLOSE_TIME / 60)}min_gate_closure.png",
+        plt.savefig(f"../medias/boxplot/{DAY_LABEL}_deboarding_time_{int(GATE_CLOSE_TIME / 60)}min_gate_closure.png",
                     bbox_inches='tight')
     else:
         plt.show()
@@ -135,7 +135,7 @@ def display_deboarding_time_bar(savefig=False):
     plt.tight_layout()
 
     if savefig:
-        plt.savefig(f"medias/barplot/{DAY_LABEL}_deboarding_time_{int(GATE_CLOSE_TIME / 60)}min_gate_closure.png",
+        plt.savefig(f"../medias/barplot/{DAY_LABEL}_deboarding_time_{int(GATE_CLOSE_TIME / 60)}min_gate_closure.png",
                     bbox_inches='tight')
     else:
         plt.show()
@@ -170,7 +170,7 @@ def display_bar_plot_missed_pax_prereserved_seats(folder_path, savefig=False):
     ax.set_ylabel('Total number of passenger missing their flights', fontsize=16)
     ax.set_xlabel('Percentage of pre-reserved seats', fontsize=16)
     if savefig:
-        plt.savefig(f"medias/barplot/{DAY_LABEL}_missed_pax_prereserved_seats_evolution.png", bbox_inches='tight')
+        plt.savefig(f"../medias/barplot/{DAY_LABEL}_missed_pax_prereserved_seats_evolution.png", bbox_inches='tight')
     else:
         plt.show()
 
@@ -217,7 +217,7 @@ def display_prereserved_seat_probability(nb_rows=20, nb_cols=6, savefig=False):
 
     plt.xlabel('Row number', fontsize=ft)
     if savefig:
-        plt.savefig('medias/prereserved_seat_probability_distribution.png', bbox_inches="tight")
+        plt.savefig('../medias/prereserved_seat_probability_distribution.png', bbox_inches="tight")
     else:
         plt.show()
 
