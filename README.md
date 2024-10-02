@@ -19,8 +19,9 @@ The project consists of two main components:
 We use a cellular automata approach to model the deboarding process. The aircraft is represented as a grid where each cell is either occupied by a passenger or empty. Passengers move to adjacent cells at each time step based on specific rules.
 
 Two disembarkation strategies are simulated:
-1. **Courtesy Rule**: Disembarkation proceeds row by row, starting from the front of the aircraft. If a passenger wants to move to the aisle but there is another passenger behind them, the one at the front takes priority while the other waits.
-2. **Aisle Priority Rule**: Passengers closer to the aisle take priority. If a passenger in the aisle wants to move forward and there is another passenger in the row who wants to access the aisle, the passenger already in the aisle moves first, and the other must wait.
+1. **Courtesy Rule**: When disembarking, passengers leave the plane row by row, starting from the front. If a passenger in a row ahead wants to step into the aisle and another passenger behind them is also waiting, the person in the front should go first, while the person behind waits their turn.
+2. **Aisle Priority Rule**: Passengers sitting closer to the aisle have priority when leaving their row. If a passenger is already in the aisle and another person in the same row wants to move into the aisle, the person already in the aisle moves first, and the one still seated must wait until the aisle is clear.
+
 
 ### Connecting Simulation
 
