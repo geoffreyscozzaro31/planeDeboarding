@@ -3,6 +3,8 @@
 ### Introduction
 
 This project is based on research work described in the following paper:  
+
+https://github.com/geoffreyscozzaro31/planeDeboarding/blob/main/ScozzaroMota2024SeatAllocationConnectingPax.pdf
 ```
 ```
 
