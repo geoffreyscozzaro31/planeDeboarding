@@ -3,6 +3,8 @@
 ### Introduction
 
 This project is based on research work described in the following paper:  
+
+https://github.com/geoffreyscozzaro31/planeDeboarding/blob/main/ScozzaroMota2024SeatAllocationConnectingPax.pdf
 ```
 ```
 
@@ -34,19 +36,9 @@ The simulation works by:
 
 Simulated passengers are generated using scheduled arrival and departure times, while actual times (accounting for delays) are used in the simulation.
 
-### Project Architecture
-*To be written.*
-
-### Installation
-*To be written.*
-
-### Running the Project
-*To be written.*
-
 ### Authors
 Geoffrey Scozzaro
 
 ### Acknowledgements
 The code for the aircraft disembarkation simulation is inspired by a GitHub project that models the boarding process: [https://github.com/pszemsza/plane_boarding](https://github.com/pszemsza/plane_boarding).
-
 
