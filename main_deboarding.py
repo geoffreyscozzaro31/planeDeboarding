@@ -51,8 +51,8 @@ def save_deboarding_orders(simulation, disembarking_rule_name):
 
 def main():
     seat_allocation_strategy = SeatAllocation.RANDOM
-    deboarding_strategy = DeboardingStrategy.AISLE_PRIORITY_RULE
-    # deboarding_strategy = DeboardingStrategy.COURTESY_RULE
+    # deboarding_strategy = DeboardingStrategy.AISLE_PRIORITY_RULE
+    deboarding_strategy = DeboardingStrategy.COURTESY_RULE
     deboarding_strategy_name = deboarding_strategy.value.lower()
     print(deboarding_strategy_name)
     simulation = DeboardingSimulation(quiet_mode=True)

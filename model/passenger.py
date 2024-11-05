@@ -1,10 +1,13 @@
 from scipy.stats import weibull_min
 
 from model.passenger_state import PassengerState
-from config_deboarding import ALPHA_WEIBULL,BETA_WEIBULL,TIME_STEP_DURATION
-
+from utils import configloader
 
 import numpy as np
+
+CONFIG_FILE_PATH = "configuration_deboarding.yaml"
+config = configloader.ConfigLoader(CONFIG_FILE_PATH)
+
 
 class Passenger:
     def __init__(self, seat_row, seat, has_luggage, has_pre_reserved_seat):
@@ -21,8 +24,8 @@ class Passenger:
         self.next_action_t = 0
         self.has_pre_reserved_seat = has_pre_reserved_seat
         if self.has_luggage:
-            time_w = weibull_min.rvs(ALPHA_WEIBULL, scale=BETA_WEIBULL) / 2
-            self.collecting_luggage_time = int(np.ceil(time_w / TIME_STEP_DURATION))
+            time_w = weibull_min.rvs(config.alpha_weibull, scale=config.beta_weibull) / 2
+            self.collecting_luggage_time = int(np.ceil(time_w / config.time_step_duration))
         else:
             self.collecting_luggage_time = 0
 

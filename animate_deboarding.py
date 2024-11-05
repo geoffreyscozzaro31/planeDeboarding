@@ -13,9 +13,9 @@ FOLDER_DATA = "medias/deboarding/"
 DISEMBARKING_RULE_NAME = "courtesy_deboarding_rule"
 NB_ROWS = 31
 TIME_STEP_DURATION = 0.5
-FILE_PATH = FOLDER_DATA + f"{DISEMBARKING_RULE_NAME}_{NB_ROWS}rows_history.txt"
+FILE_PATH = FOLDER_DATA + f"{DISEMBARKING_RULE_NAME}_{NB_ROWS}rows_history_test.txt"
 
-NB_STEPS = 2
+NB_STEPS = 6
 
 
 class State(IntEnum):
@@ -130,14 +130,12 @@ def generate_animation(save_animation=False):
         x = []
         y = []
         c = []
-
         for entry in state:
             _, pax_id, x_pos, y_pos, pax_state = entry
             if pax_state != 9:  # Not deboarded
                 x.append(x_pos)
                 y.append(y_pos)
                 c.append(pax_state)
-
         return np.c_[x, y], np.array(c)
 
     saveframe_idx = []
@@ -153,17 +151,23 @@ def generate_animation(save_animation=False):
             print(f"frame {frame} saved ! ")
         return scat, time_text
 
-    frames = list(history_with_fictive_steps.keys())
-    ani = FuncAnimation(fig, update, frames=frames, interval=0.1, blit=True)
+    ellipse_start_frame = 1000
+    ellipse_end_frame = 2000
+    frames = np.array(list(history_with_fictive_steps.keys())) #[frame_min:frame_max]
+    mask = np.ones(len(frames), dtype=bool)
+    mask[ellipse_start_frame:ellipse_end_frame] = False
+    frames_subset = frames[mask]
+    ani = FuncAnimation(fig, update, frames=frames_subset, interval=0.1, blit=True)
     if save_animation:
         nb_fps = 45
-        ani.save(FOLDER_DATA + f'animations/animation_deboarding_{DISEMBARKING_RULE_NAME}_{nb_fps}fps_v2.gif',
-                 writer='pillow',
-                 fps=nb_fps, progress_callback=lambda i, n: print(f'Saving frame {i}/{len(frames)}'))
+        ani.save(
+            FOLDER_DATA + f'animations/animation_deboarding_{DISEMBARKING_RULE_NAME}_{NB_STEPS}steps_frame_{ellipse_start_frame}_{ellipse_end_frame}_ellipse.gif',
+            writer='pillow',
+            fps=nb_fps, progress_callback=lambda i, n: print(f'Saving frame {i}/{len(frames)}'))
         print("Animation saved!")
     else:
         plt.show()
 
 
 if __name__ == "__main__":
-    generate_animation(save_animation=False)
+    generate_animation(save_animation=True)
