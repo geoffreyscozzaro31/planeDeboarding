@@ -41,4 +41,4 @@ Geoffrey Scozzaro
 
 ### Acknowledgements
 The code for the aircraft disembarkation simulation is inspired by a GitHub project that models the boarding process: [https://github.com/pszemsza/plane_boarding](https://github.com/pszemsza/plane_boarding).
-
+Special thanks to Dr. Miguel Mujica Mota for contributions to the research and methodology for connecting passenger optimization.
